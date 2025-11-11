@@ -1,0 +1,19 @@
+High Prio:
+
+advantage und disadvantage (by default nur auf den ersten würfel)
+attack roll attr erstellen
+display stats command
+
+
+Mid Prio:
+Mehrere Würfe in einem Befehl, die nicht zusammenaddiert werden. Trennung möglicherweise mit Komma.
+Textausgabe bei nat20 o. nat1
+selbst commands programmieren können, bzw attribute (.append)
+lower bound bei 1 bei würfen
+
+Low Prio:
+output formatierung des Input Strings
+different charactersheets for the same player, switchable
+
+Done:
+savingthrows
