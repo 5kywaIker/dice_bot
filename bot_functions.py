@@ -128,11 +128,12 @@ async def roll_attribute(ctx, to_roll, player_id):
     else:
         original_input_modified = to_roll[:4]
 
+
+
     #wenn custom attribut mit d20/d12/d10 etc im modifier, dann roll_standard mit modifier aufrufen, ansonsten 1d20 würfeln und standard attribut addieren
     if "d" in to_roll_attribute_modifier:
-        if "|" in to_roll_attribute_modifier:
-            to_roll_attribute_modifier_list = to_roll_attribute_modifier.split()
-            for attribute_modifier in to_roll_attribute_modifier[:len(to_roll_modifier)]:
+
+        to_roll_attribute_modifier_list = to_roll_attribute_modifier.split()
 
         roll_result_output, roll_result_eval, original_input_modified = await roll_standard(ctx, str(to_roll_attribute_modifier), player_id)
     else:
