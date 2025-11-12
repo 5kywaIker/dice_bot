@@ -26,6 +26,10 @@ async def roll_standard_command(ctx, to_roll, player_id, temp_adv_modifier=0):
     global adv_modifier
     adv_modifier = temp_adv_modifier
 
+    #überprüfe ob to_roll nur modifier enthält, wenn ja, dann erweitere to_roll um 1d20 am anfang
+    if not re.search(r"[a-zA-Z]", to_roll):
+        to_roll = "1d20" + str(to_roll)
+
     #check ob einer der eingabewerte ein custom command ist und ersetze den custom command durch den custom modifier-wert
     temp_to_roll = await split_dice_string(to_roll)
     temp_player_name = player.user_dict[player_id]

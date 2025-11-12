@@ -15,7 +15,7 @@ async def on_ready():
     print(f'Bot: {bot.user} online')
 
 
-@bot.command()
+@bot.command(aliases=['t'])
 async def r(ctx, to_roll="1d20", *args):
     import bot_functions
     author = ctx.message.author
@@ -37,11 +37,14 @@ async def r(ctx, to_roll="1d20", *args):
     except Exception as e:
         print(e)
         traceback.print_exc()
-        await ctx.reply(f"HRIP, darfst anscheinend nicht mehr würfeln :') Must use Format: -r 1d20+2 oder ein Attribut. [[{e=}]]")
+        await ctx.reply(f"RIP, darfst anscheinend nicht mehr würfeln :') Must use Format: -r 1d20+2 oder ein Attribut. [[{e=}]]")
 
         
 @bot.command()
 async def ad(ctx, to_roll="1d20", *args):
+    #-ad +modifier würfeln, standard wurf auch ausführen wenn nur modifier übergeben wird
+    #dafür überprüfen ob ein Buchstabe im Inputstring enthalten ist, ansonsten wurden nur modifier übergeben und der string sollte um "1d20" erweitert werden
+
     import bot_functions
     author = ctx.message.author
 
@@ -62,7 +65,7 @@ async def ad(ctx, to_roll="1d20", *args):
     except Exception as e:
         print(e)
         traceback.print_exc()
-        await ctx.reply("Joa, gut, das ging wohl nicht. War auf Vorteil, also sag dem DM einfach du hast ne dirty 20. Must use Format: -r 1d20+2 oder ein Attribut ")
+        await ctx.reply("Sucks to be you. War auf Vorteil, also sag dem DM einfach du hast ne dirty 20. Must use Format: -r 1d20+2 oder ein Attribut ")
 
 
 @bot.command()
@@ -255,26 +258,7 @@ async def rd(ctx, to_roll="1d20", *args):
         traceback.print_exc()
         await ctx.reply(f"Hmm, ne, keine Ahnung was passiert ist. Stell dir einfach vor ist ne 1. Must use Format: -r 1d20+2 oder ein Attribut.")
 
-@bot.command()
-async def ad(ctx, to_roll="1d20", *args):
-    import bot_functions
-    author = ctx.message.author
 
-    try:
-        if len(args) != 0:
-            for item in args:
-                to_roll += "|"+ str(item)
-        await bot_functions.roll_advantage_command(ctx, to_roll, author.id, 1)
-
-    except CustomErrors.NotUniqueMatching as e:                                                             #my custom Error
-        print(e)
-        traceback.print_exc()
-        await ctx.reply("Attribut-Eingabe nicht eindeutig")
-    except CustomErrors.NotExistingMatching as e:
-        print(e)
-        traceback.print_exc()
-        await ctx.reply("Attribut-Eingabe existiert nicht")
-    except Exception as e:
-        print(e)
-        traceback.print_exc()
-        await ctx.reply("Joa, gut, das ging wohl nicht. War auf Vorteil, also sag dem DM einfach du hast ne dirty 20. Must use Format: -r 1d20+2 oder ein Attribut ")
+@bot.command(aliases=['cow', 'bow', 'tow'])
+async def tst(ctx):
+    await ctx.reply("inshallah, gönjamin")
