@@ -12,6 +12,7 @@ player_attribute_dict = {}
 attribute_list = {}
 attribute_list_normal = []
 attribute_list_saves = []
+attribute_list_custom = []
 #class Player 
 
 #def __init__(ctx, ):
@@ -23,6 +24,7 @@ def set_attribute_dict(user_name):
         global attribute_list_normal
         global attribute_list_saves
         global attribute_list
+        global attribute_list_custom
         content = file.readlines()
         attribute_list = content[0].replace("\n", "").split(",")
         attribute_dict = {}
@@ -35,7 +37,8 @@ def set_attribute_dict(user_name):
             if player_attribute_list[0] == user_name:
                 for i in range(1, len(player_attribute_list)):
                     attribute_dict[attribute_list[i]] = player_attribute_list[i]
-        attribute_list_normal = [text for text in attribute_list if not "save" in text]    
-        attribute_list_saves = [text for text in attribute_list if "save" in text]    
+        attribute_list_normal = [text for text in attribute_list[:32] if not "save" in text]
+        attribute_list_saves = [text for text in attribute_list[:32] if "save" in text]
+        attribute_list_custom = attribute_list[32:]
         return(attribute_dict)
 

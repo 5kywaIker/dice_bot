@@ -7,6 +7,7 @@ import player
 import CustomErrors
 from dice_bot import bot
 
+adv_modifier = 0
 
 #on Bot start, lade alle Spieler-Werte aus der Text Datei in die Player Class
 def create_player_dict():
@@ -19,7 +20,34 @@ def create_player_dict():
     return(user_attribute_dict)
 
 
-async def roll_standard_command(ctx, to_roll, player_id):
+#Standard Funktion zum Würfeln. Should move to different file. Handled die Logik fürs Würfeln und die Formatierung der Ausgabe.
+async def roll_standard_command(ctx, to_roll, player_id, temp_adv_modifier=0):
+
+    global adv_modifier
+    adv_modifier = temp_adv_modifier
+
+    #check ob einer der eingabewerte ein custom command ist und ersetze den custom command durch den custom modifier-wert
+    temp_to_roll = await split_dice_string(to_roll)
+    temp_player_name = player.user_dict[player_id]
+    to_roll = ""
+
+    for i in range(len(temp_to_roll)):
+        temp_einzel_eingabe = temp_to_roll[i]
+        temp_attribute = [text for text in player.attribute_list if temp_einzel_eingabe in text]
+
+        temp_attribute = [text for text in player.attribute_list_custom if temp_einzel_eingabe in text]
+        if len(temp_attribute) == 1:
+
+            temp_to_roll_attribute_modifier = str(player.player_attribute_dict.get(temp_player_name)[temp_attribute[0]])
+            temp_to_roll[i] = temp_to_roll_attribute_modifier
+            if len(temp_attribute) > 1:
+                raise CustomErrors.NotUniqueMatching
+
+    for i in temp_to_roll:
+        to_roll += i
+    ####
+
+
 
     #mehrfach_würfel, falls anzeigender seperator im string "to_roll"
     if "|" in to_roll:
@@ -32,6 +60,10 @@ async def roll_standard_command(ctx, to_roll, player_id):
         roll_result_output_string, roll_result_eval, original_input_modified = await roll_standard(ctx, to_roll, player_id)
         output_message = str(original_input_modified) + ":" + str(roll_result_output_string) + " = " + str(roll_result_eval)
         await ctx.reply(output_message)
+
+
+async def roll_advantage_command(ctx, to_roll, player_id, temp_adv_modifier):
+    await roll_standard_command(ctx, to_roll, player_id, temp_adv_modifier)
 
 
 async def roll_standard(ctx, to_roll, player_id):
@@ -88,15 +120,42 @@ async def roll_dice(to_roll="1d20"):
     dice_size = int(to_roll_list[1])
     roll_result_output = ""
     roll_result_eval = 0
-    
-    for i in range(0, number_of_dice):
-        
-        rolled_number = random.randint(1, dice_size)
-        if 0 < i < number_of_dice:
-            roll_result_output += ", "
-        roll_result_output += str(rolled_number)
-        roll_result_eval += rolled_number
-            
+    global adv_modifier
+
+    if not adv_modifier == 0:
+
+        if adv_modifier == 1:
+            for i in range(0, number_of_dice):
+
+                rolled_number1 = random.randint(1, dice_size)
+                rolled_number2 = random.randint(1, dice_size)
+                rolled_number = max(rolled_number1, rolled_number2)
+                if 0 < i < number_of_dice:
+                    roll_result_output += "]" " + " "["
+                roll_result_output += str(rolled_number1) + ", " + str(rolled_number2)
+                roll_result_eval += rolled_number
+
+        if adv_modifier == 2:
+            for i in range(0, number_of_dice):
+
+                rolled_number1 = random.randint(1, dice_size)
+                rolled_number2 = random.randint(1, dice_size)
+                rolled_number = min(rolled_number1, rolled_number2)
+                if 0 < i < number_of_dice:
+                    roll_result_output += "]" " + " "["
+                roll_result_output += str(rolled_number1) + ", " + str(rolled_number2)
+                roll_result_eval += rolled_number
+
+    else:
+        for i in range(0, number_of_dice):
+
+            rolled_number = random.randint(1, dice_size)
+            if 0 < i < number_of_dice:
+                roll_result_output += ", "
+            roll_result_output += str(rolled_number)
+            roll_result_eval += rolled_number
+
+    adv_modifier = 0
     return(roll_result_output, str(roll_result_eval))
 
 
@@ -128,7 +187,11 @@ async def roll_attribute(ctx, to_roll, player_id):
     else:
         original_input_modified = to_roll[:4]
 
-
+    #wenn das Attribut als Wert einen String im Format "1d20+6|2d6+4" o.ä. hat
+    #dann muss der String aufgesplittet werden, und die einzelnen Eingaben seperat gewürfelt werden
+    #if "|" in to_roll_attribute_modifier:
+        #to_roll_attribute_modifier_list = to_roll_attribute_modifier.split("|")
+        #for attribute_modifier
 
     #wenn custom attribut mit d20/d12/d10 etc im modifier, dann roll_standard mit modifier aufrufen, ansonsten 1d20 würfeln und standard attribut addieren
     if "d" in to_roll_attribute_modifier:
@@ -137,7 +200,7 @@ async def roll_attribute(ctx, to_roll, player_id):
 
         roll_result_output, roll_result_eval, original_input_modified = await roll_standard(ctx, str(to_roll_attribute_modifier), player_id)
     else:
-        to_roll_attribute_modifier = int(to_roll_attribute_modifier)    #remove extra leerzeichen, oder mathematische operantoren
+        to_roll_attribute_modifier = int(to_roll_attribute_modifier)    #remove extra leerzeichen, oder mathematische operanten
         roll_result_output, roll_result_eval = await roll_dice()
     
         roll_result_eval += "+" + str(to_roll_attribute_modifier)
@@ -149,15 +212,12 @@ async def roll_attribute(ctx, to_roll, player_id):
 async def roll_attribute_command(ctx, to_roll, player_id):
     await roll_standard_command(ctx, to_roll, player_id)
     return
-    
-async def roll_advantage_command(ctx, to_roll):
-    return
 
-async def roll_disadvantage_command(ctx, to_roll):
-    return
     
-async def split_dice_string(string_w):
+async def split_dice_string(string_w)->list:
     split_string_list = re.split(r'(\W)', string_w)
+    if "" in split_string_list:
+        split_string_list.remove("")
     return(split_string_list)
 
 

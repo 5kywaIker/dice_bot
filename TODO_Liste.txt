@@ -3,6 +3,7 @@ High Prio:
 advantage und disadvantage (by default nur auf den ersten würfel)
 attack roll attr erstellen
 display stats command
+tohit in player_attribute.txt
 
 
 Mid Prio:
