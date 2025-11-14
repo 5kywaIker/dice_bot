@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import discord
 from discord.ext import commands
 import re
@@ -7,7 +8,9 @@ import player
 import CustomErrors
 from dice_bot import bot
 
+#adv_modifier = 0[normal], 1[advantage], 2[disadvantage]
 adv_modifier = 0
+adv_modifier_attribute = 0
 
 #on Bot start, lade alle Spieler-Werte aus der Text Datei in die Player Class
 def create_player_dict():
@@ -21,53 +24,48 @@ def create_player_dict():
 
 
 #Standard Funktion zum Würfeln. Should move to different file. Handled die Logik fürs Würfeln und die Formatierung der Ausgabe.
-async def roll_standard_command(ctx, to_roll, player_id, temp_adv_modifier=0):
+async def r_command(ctx, to_roll, player_id, temp_adv_modifier=0):
 
     global adv_modifier
+    global adv_modifier_attribute
     adv_modifier = temp_adv_modifier
+    adv_modifier_attribute = temp_adv_modifier
 
-    #überprüfe ob to_roll nur modifier enthält, wenn ja, dann erweitere to_roll um 1d20 am anfang
-    if not re.search(r"[a-zA-Z]", to_roll):
-        to_roll = "1d20" + str(to_roll)
+    # notwendig, weil -attack sonst nicht seperat ausgeführt und ausgeprinted werden, bzw alle custom-commands mit "|" seperator. Trennung erfolgt unmittelbar danach
+    to_roll = await replace_custom_commands(to_roll, player_id)
 
-    #check ob einer der eingabewerte ein custom command ist und ersetze den custom command durch den custom modifier-wert
-    temp_to_roll = await split_dice_string(to_roll)
-    temp_player_name = player.user_dict[player_id]
-    to_roll = ""
-
-    for i in range(len(temp_to_roll)):
-        temp_einzel_eingabe = temp_to_roll[i]
-        temp_attribute = [text for text in player.attribute_list if temp_einzel_eingabe in text]
-
-        temp_attribute = [text for text in player.attribute_list_custom if temp_einzel_eingabe in text]
-        if len(temp_attribute) == 1:
-
-            temp_to_roll_attribute_modifier = str(player.player_attribute_dict.get(temp_player_name)[temp_attribute[0]])
-            temp_to_roll[i] = temp_to_roll_attribute_modifier
-            if len(temp_attribute) > 1:
-                raise CustomErrors.NotUniqueMatching
-
-    for i in temp_to_roll:
-        to_roll += i
-    ####
-
-
-
-    #mehrfach_würfel, falls anzeigender seperator im string "to_roll"
+    #mehrfach_würfeln, und die ergebnisse seperat zurückgeben, falls anzeigender seperator im string "to_roll" ("|" oder " ")
+    #if und else können maybe entfernt werden, wenn to_roll.split("|") eine Liste mit einem Element zurückgibt, falls "|" nicht im String enthalten ist
     if "|" in to_roll:
         to_roll = to_roll.split("|")
         for dice in to_roll:
+
+            # überprüfe ob to_roll nur modifier enthält, wenn ja, dann erweitere to_roll um 1d20 am anfang. Für custom commands die keinen d20 enthalten und "-r dext|+1 oder so
+            if not re.search(r"[a-zA-Z]", dice):
+                dice = "1d20" + str(dice)
+
             roll_result_output_string, roll_result_eval, original_input_modified = await roll_standard(ctx, dice, player_id)
             output_message = str(original_input_modified) + ":" + str(roll_result_output_string) + " = " + str(roll_result_eval)
             await ctx.reply(output_message)
     else:
+
+        # überprüfe im anderen case ebenfalls ob to_roll nur modifier enthält, wenn ja, dann erweitere to_roll um 1d20 am anfang
+        if not re.search(r"[a-zA-Z]", to_roll):
+            to_roll = "1d20" + str(to_roll)
+
         roll_result_output_string, roll_result_eval, original_input_modified = await roll_standard(ctx, to_roll, player_id)
         output_message = str(original_input_modified) + ":" + str(roll_result_output_string) + " = " + str(roll_result_eval)
         await ctx.reply(output_message)
 
+        adv_modifier = 0
+        adv_modifier_attribute = 0
 
-async def roll_advantage_command(ctx, to_roll, player_id, temp_adv_modifier):
-    await roll_standard_command(ctx, to_roll, player_id, temp_adv_modifier)
+
+async def ad_command(ctx, to_roll, player_id, temp_adv_modifier=1):
+    await r_command(ctx, to_roll, player_id, temp_adv_modifier)
+
+async def di_command(ctx, to_roll, player_id, temp_adv_modifier=2):
+    await r_command(ctx, to_roll, player_id, temp_adv_modifier)
 
 
 async def roll_standard(ctx, to_roll, player_id):
@@ -163,16 +161,28 @@ async def roll_dice(to_roll="1d20"):
     return(roll_result_output, str(roll_result_eval))
 
 
-#bekommt den Namen eines Attributs in to_roll übergeben, guckt den Attr Wert des Spielers nach und mit dem Ergebnis
+
 async def roll_attribute(ctx, to_roll, player_id):
-    
+    '''
+    bekommt den Namen eines Attributs in to_roll übergeben, guckt den Attr Wert des Spielers nach und würfelt einen d20 mit dem Ergebnis
+    :param ctx:Context
+    :param to_roll:str
+    :param player_id:str
+    :return:(str,str,str)
+    '''
+    #global adv_modifier
+    #global adv_modifier_attribute
+    #adv_modifier = adv_modifier_attribute
+    #code above hat noch probleme, wenn ein custom command mehrere custom commands enthält. Dann kann eventuell damage auf vorteil gewürfelt werden
+    #at that point user issue ig
+
     player_name = player.user_dict[player_id]
     
     if "sav" in to_roll or "sv" in to_roll:                                         #überprüfen ob das Attr ein Modifier ist
         to_roll = re.sub(r"(sav|sv).*", "", to_roll)
-        to_roll = [text for text in player.attribute_list_saves if to_roll in text]
+        to_roll = await match_substring(player.attribute_list_saves, to_roll)
     else:
-        to_roll = [text for text in player.attribute_list_normal if to_roll in text]               
+        to_roll = await match_substring(player.attribute_list_normal, to_roll)
     
     if len(to_roll) == 0:
         raise CustomErrors.NotExistingMatching
@@ -198,6 +208,8 @@ async def roll_attribute(ctx, to_roll, player_id):
         #for attribute_modifier
 
     #wenn custom attribut mit d20/d12/d10 etc im modifier, dann roll_standard mit modifier aufrufen, ansonsten 1d20 würfeln und standard attribut addieren
+    # case wird aktuell bereits in r_command abgefangen
+    #kann weiterhin ausgeführt werden, falls der wert von einem custom command mehrere custom commands sind -> muss auf
     if "d" in to_roll_attribute_modifier:
 
         to_roll_attribute_modifier_list = to_roll_attribute_modifier.split()
@@ -213,31 +225,77 @@ async def roll_attribute(ctx, to_roll, player_id):
     
     return(roll_result_output, str(roll_result_eval), str(original_input_modified))
 
-async def roll_attribute_command(ctx, to_roll, player_id):
-    await roll_standard_command(ctx, to_roll, player_id)
-    return
 
-    
+
 async def split_dice_string(string_w)->list:
+    """
+    splittet den string an allen charakteren die nicht Buchstabe oder Zahl sind
+    """
     split_string_list = re.split(r'(\W)', string_w)
     if "" in split_string_list:
         split_string_list.remove("")
     return(split_string_list)
 
 
+async def replace_custom_commands(to_roll, player_id):
+    """
+    check ob einer der eingabewerte ein custom command ist und ersetze den custom command durch den custom modifier-wert
+    """
+    temp_to_roll = await split_dice_string(to_roll)
+    temp_player_name = player.user_dict[player_id]
+    to_roll = ""
+
+    for i in range(len(temp_to_roll)):
+        temp_einzel_eingabe = temp_to_roll[i]
+
+        custom_attribute_list = await match_substring(player.attribute_list_custom, temp_einzel_eingabe)
+        if len(custom_attribute_list) == 1:
+
+            custom_modifier = str(player.player_attribute_dict.get(temp_player_name)[custom_attribute_list[0]])
+            custom_modifier_list = await split_dice_string(custom_modifier)
+            custom_modifier = ""
+            for custom in range(len(custom_modifier_list)):
+                nested_modifier = custom_modifier_list[custom]
+                nested_command_list = await match_substring(player.attribute_list_custom, nested_modifier)
+
+                if len(nested_command_list) == 1:
+                    custom_modifier_list[custom] = await replace_custom_commands(nested_command_list[0], player_id)
+                elif len(nested_command_list) > 1:
+                    raise CustomErrors.NotUniqueMatching
+            for custom in range(len(custom_modifier_list)):
+                custom_modifier += custom_modifier_list[custom]
+            temp_to_roll[i] = custom_modifier
+
+        elif len(custom_attribute_list) > 1:
+            raise CustomErrors.NotUniqueMatching
+
+    for i in temp_to_roll:
+        to_roll += i
+    ####
+
+    return(to_roll)
 
 
+# to do Füge überprüfung ob len(matching_list) >1, == 1 oder 0 ein.
+#werfe error auf >1, return andernfalls
+async def match_substring(list_to_search, search_string):
+    """
+    Looks through a list of strings and returns all strings that match or contain "search_string" as a sub_string
+    """
+    matching_list = [text for text in list_to_search if search_string in text]
+
+    return(matching_list)
 
 
-async def befehle_command(ctx):
-    command_list = [f'- {command.name}' for command in bot.commands]
-    formatted_commands = '\n'.join(command_list)
-    response = f'Command Liste:\n{formatted_commands}\n'
-    await send_formatted(ctx, response)
-
-async def send_formatted(ctx, msg):
-    formatted_msg = f'{msg}'
-    await ctx.send(formatted_msg)
+async def call_custom_command(ctx, custom_command, player_id):
+    current_module = sys.modules["bot_functions"]
+    custom_command_list = re.split(r'\[|\]', custom_command)
+    if "" in custom_command_list:
+        custom_command_list.remove("")
+    custom_command = custom_command_list[0]
+    custom_command += "_command"
+    custom_command = await getattr(current_module, custom_command)(ctx, custom_command_list[1], player_id)
+    print(custom_command)
 
 
 

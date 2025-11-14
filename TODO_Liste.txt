@@ -1,20 +1,25 @@
 High Prio:
-
-advantage und disadvantage (by default nur auf den ersten würfel)
-attack roll attr erstellen
-display stats command
+setall & getall
 tohit in player_attribute.txt
-
+advantage rolls würfeln aktuell nur auf den ersten d20 roll adv -> sollen auf den ersten d20 wurf und auf alle nachfolgenden attribut-würfe adv geben, falls "-ad dext|str"
+"if not" abfrage (zeile 33) in roll_standard_command muss ein stück weiter hinten in den code, um edge cases mit "|" und custom commands mit "|" abzufangen
 
 Mid Prio:
-Mehrere Würfe in einem Befehl, die nicht zusammenaddiert werden. Trennung möglicherweise mit Komma.
-Textausgabe bei nat20 o. nat1
+exception handling aufräumen & übergeben welches attribut z.B. nicht eindeutig war
+casing ignorieren bei set und get befehlen
+auräumen: roll_standard, sowie roll_attribute und roll_dice sollten in ein eigenes file
+attack roll attr aufteilen in tohit und damage
 selbst commands programmieren können, bzw attribute (.append)
 lower bound bei 1 bei würfen
 
 Low Prio:
-output formatierung des Input Strings
+Textausgabe bei nat20 o. nat1
+output formatierung des Input Strings (?)
 different charactersheets for the same player, switchable
 
 Done:
 savingthrows
+advantage und disadvantage (by default nur auf den ersten würfel)
+attack roll attr erstellen
+display stats command
+Mehrere Würfe in einem Befehl, die nicht zusammenaddiert werden. Trennung möglicherweise mit | oder " ".
