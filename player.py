@@ -13,16 +13,11 @@ attribute_list = {}
 attribute_list_normal = []
 attribute_list_saves = []
 attribute_list_custom = []
-#class Player 
-
-#def __init__(ctx, ):
-    #global player_attribute_dict
 
 # on Bot start, lade alle Spieler-Werte aus der Text Datei in die Player Class
 def create_player_dict():
     global player_attribute_dict
     user_attribute_dict = {}
-
 
     for user_id, user_name in user_dict.items():
         user_attribute_dict[user_name] = set_attribute_dict(user_name)

@@ -105,11 +105,9 @@ async def roll_attribute(ctx, to_roll, player_id):
     :param player_id:str
     :return:(str,str,str)
     '''
-    # global adv_modifier
-    # global adv_modifier_attribute
-    # adv_modifier = adv_modifier_attribute
-    # code above hat noch probleme, wenn ein custom command mehrere custom commands enthält. Dann kann eventuell damage auf vorteil gewürfelt werden
-    # at that point user issue ig
+    global adv_modifier
+    global adv_modifier_attribute
+    adv_modifier = adv_modifier_attribute
 
     player_name = player.user_dict[player_id]
 
@@ -139,28 +137,17 @@ async def roll_attribute(ctx, to_roll, player_id):
     else:
         original_input_modified = to_roll[:4]
 
-    # wenn das Attribut als Wert einen String im Format "1d20+6|2d6+4" o.ä. hat
-    # dann muss der String aufgesplittet werden, und die einzelnen Eingaben seperat gewürfelt werden
-    # if "|" in to_roll_attribute_modifier:
-    # to_roll_attribute_modifier_list = to_roll_attribute_modifier.split("|")
-    # for attribute_modifier
-
-    # wenn custom attribut mit d20/d12/d10 etc im modifier, dann roll_standard mit modifier aufrufen, ansonsten 1d20 würfeln und standard attribut addieren
-    # case wird aktuell bereits in r_command abgefangen
-    # kann weiterhin ausgeführt werden, falls der wert von einem custom command mehrere custom commands sind -> muss auf
+    # guckt ob der Modifier 1d20 o.ä. enthält. Wenn ja, roll_standard erneute aufrufen mit dem modifier als to_roll übergabe. Dies würfelt den Modifier vollständig aus und arbeitet ihn ab.
+    # wenn der Modifier keinen d20 enthält, dann wird im else: ein d20 hinzugefügt
     if "d" in to_roll_attribute_modifier:
-
-        to_roll_attribute_modifier_list = to_roll_attribute_modifier.split()
-
-        roll_result_output, roll_result_eval, original_input_modified = await roll_standard(ctx,
-                                                                                            str(to_roll_attribute_modifier),
-                                                                                            player_id)
+        roll_result_output, roll_result_eval, original_input_modified = await roll_standard(ctx, str(to_roll_attribute_modifier), player_id)
     else:
-        to_roll_attribute_modifier = int(
-            to_roll_attribute_modifier)  # remove extra leerzeichen, oder mathematische operanten
+        to_roll_attribute_modifier = int(to_roll_attribute_modifier)  # remove extra leerzeichen, oder mathematische operanten
         roll_result_output, roll_result_eval = await roll_dice()
 
         roll_result_eval += "+" + str(to_roll_attribute_modifier)
         roll_result_output = " [" + roll_result_output + "]" + " + " + str(to_roll_attribute_modifier)
+
+    adv_modifier = 0
 
     return (roll_result_output, str(roll_result_eval), str(original_input_modified))

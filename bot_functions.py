@@ -14,6 +14,7 @@ async def r_command(ctx, to_roll, player_id, temp_adv_modifier=0):
     # notwendig, weil -attack sonst nicht seperat ausgeführt und ausgeprinted werden, bzw alle custom-commands mit "|" seperator. Trennung erfolgt unmittelbar danach
     to_roll = await replace_custom_commands(to_roll, player_id)
 
+    #auf nested commands prüfen, falls nested command, dann den entsprechend command aufrufen. Nach dem command wird der code beendet. Weitere teile von to_roll werden ignoriert
     if "[" in to_roll:
         await call_custom_command(ctx, to_roll, player_id)
 
@@ -31,8 +32,8 @@ async def r_command(ctx, to_roll, player_id, temp_adv_modifier=0):
         output_message = str(original_input_modified) + ":" + str(roll_result_output_string) + " = " + str(roll_result_eval)
         await ctx.reply(output_message)
 
-    adv_modifier = 0
-    adv_modifier_attribute = 0
+    dice_roller.adv_modifier = 0
+    dice_roller.adv_modifier_attribute = 0
 
 
 async def ad_command(ctx, to_roll, player_id, temp_adv_modifier=1):
@@ -141,5 +142,7 @@ async def call_custom_command(ctx, custom_command, player_id):
         custom_command_list.remove("")
     custom_command = custom_command_list[0]
     custom_command += "_command"
-    custom_command = await getattr(current_module, custom_command)(ctx, custom_command_list[1], player_id)
+    await getattr(current_module, custom_command)(ctx, custom_command_list[1], player_id)
+    dice_roller.adv_modifier = 0
+    dice_roller.adv_modifier_attribute = 0
     raise CustomErrors.Custom_Command_End
