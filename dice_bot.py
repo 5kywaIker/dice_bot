@@ -1,9 +1,10 @@
 import traceback
-
 import discord
 import CustomErrors
 import player
 from discord.ext import commands
+import bot_functions
+
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -34,6 +35,8 @@ async def r(ctx, to_roll="1d20", *args):
         print(e)
         traceback.print_exc()
         await ctx.reply("Attribut-Eingabe existiert nicht")
+    except CustomErrors.Custom_Command_End as e:
+        print(e)
     except Exception as e:
         print(e)
         traceback.print_exc()
@@ -54,7 +57,7 @@ async def ad(ctx, to_roll="1d20", *args):
                 to_roll += "|"+ str(item)
         await bot_functions.ad_command(ctx, to_roll, author.id, 1)
 
-    except CustomErrors.NotUniqueMatching as e:                                                             #my custom Error
+    except CustomErrors.NotUniqueMatching as e:
         print(e)
         traceback.print_exc()
         await ctx.reply("Attribut-Eingabe nicht eindeutig")
@@ -62,6 +65,8 @@ async def ad(ctx, to_roll="1d20", *args):
         print(e)
         traceback.print_exc()
         await ctx.reply("Attribut-Eingabe existiert nicht")
+    except CustomErrors.Custom_Command_End as e:
+        print(e)
     except Exception as e:
         print(e)
         traceback.print_exc()
@@ -79,7 +84,7 @@ async def di(ctx, to_roll="1d20", *args):
                 to_roll += "|"+ str(item)
         await bot_functions.di_command(ctx, to_roll, author.id, 2)
 
-    except CustomErrors.NotUniqueMatching as e:                                                             #my custom Error
+    except CustomErrors.NotUniqueMatching as e:
         print(e)
         traceback.print_exc()
         await ctx.reply("Attribut-Eingabe nicht eindeutig")
@@ -87,6 +92,8 @@ async def di(ctx, to_roll="1d20", *args):
         print(e)
         traceback.print_exc()
         await ctx.reply("Attribut-Eingabe existiert nicht")
+    except CustomErrors.Custom_Command_End as e:
+        print(e)
     except Exception as e:
         print(e)
         traceback.print_exc()
@@ -107,7 +114,7 @@ async def attack(ctx, to_roll="attack", *args):
                 to_roll += "|"+ str(item)
         await bot_functions.r_command(ctx, to_roll, author.id)
 
-    except CustomErrors.NotUniqueMatching as e:                                                             #my custom Error
+    except CustomErrors.NotUniqueMatching as e:
         print(e)
         traceback.print_exc()
         await ctx.reply("Attribut-Eingabe nicht eindeutig")
@@ -115,6 +122,8 @@ async def attack(ctx, to_roll="attack", *args):
         print(e)
         traceback.print_exc()
         await ctx.reply("Attribut-Eingabe existiert nicht")
+    except CustomErrors.Custom_Command_End as e:
+        print(e)
     except Exception as e:
         print(e)
         traceback.print_exc()
@@ -135,60 +144,45 @@ async def get(ctx, *, request):
 async def change(ctx, request, change_to, *args):
     import bot_functions
 
-    if not len(args) == 0:
-        await ctx.reply("Zu viele Werte zu denen gechanged werden sollen übergeben")
-        return
+    try:
+        if not len(args) == 0:
+            await ctx.reply("Zu viele Werte zu denen gechanged werden sollen übergeben")
+            return
 
-    if change_to == None:
-        await ctx.reply("Keinen aktuellen Wert zu dem gechanged werden soll übergeben")
-        return
-    
-    author = ctx.message.author
-    request_long = await bot_functions.match_substring(player.attribute_list, request)
-    user_name = player.user_dict[author.id]
-    att_dict = player.player_attribute_dict[user_name]
-    
-    att_name_list = list(att_dict)
-    att_number_list = list(att_dict.values())
-    player_number = list(player.player_attribute_dict)
-    player_number = player_number.index(user_name) + 1
-    
-    request_index = att_name_list.index(request_long[0])
-    old_value = att_number_list[request_index]
-    att_number_list[request_index] = change_to
-    write_string = str(user_name) 
-    
-    for i in att_number_list:
-        write_string += "," + i 
-        
-    
-    with open('player_attribute.txt') as file:
-        lines = file.readlines()
-        if (player_number <= len(lines)):
-            lines[player_number] = write_string + "\n"
-            with open('player_attribute.txt', "w") as file:
-                for line in lines:
-                    file.write(line)
-                
-    await ctx.reply(f"Dein {request_long[0]} Eintrag wurde von {old_value} zu {change_to} geändert")
+        if change_to is None:
+            await ctx.reply("Keinen aktuellen Wert zu dem gechanged werden soll übergeben")
+            return
+
+        author = ctx.message.author
+        request_long, old_value = await bot_functions.change_command(ctx, request, change_to, author.id)
+
+        await ctx.reply(f"Dein {request_long[0]} Eintrag wurde von {old_value} zu {change_to} geändert")
+
+    except CustomErrors.NotUniqueMatching as e:
+        print(e)
+        traceback.print_exc()
+        await ctx.reply("Attribut-Eingabe nicht eindeutig")
+    except CustomErrors.NotExistingMatching as e:
+        print(e)
+        traceback.print_exc()
+        await ctx.reply("Attribut-Eingabe existiert nicht")
+    except CustomErrors.Custom_Command_End as e:
+        print(e)
+    except Exception as e:
+        print(e)
+        traceback.print_exc()
+        await ctx.reply("ALARM. ALARM. Ein Eindringling. Dachtest du kannst hier einfach so rumschleichen und die Uniform klauen.")
+
 
 @bot.command()
 async def update(ctx):
-    import bot_functions
-    bot_functions.create_player_dict()
+    player.create_player_dict()
 
-
-
-####################################################################################################
-#Doppelte Commands:
-####################################################################################################
-
-
-"Einfach Oldschool unterwegs. Selbst schuld. Must use: -r 1d20+2 oder Abwandlungen davon"
 
 ##test##
 @bot.command(aliases=['cow', 'bow', 'tow'])
 async def test(ctx):
     author = ctx.message.author
     import bot_functions
-    await bot_functions.call_custom_command(ctx, "roll_standard[1d20]", author.id)
+    await ctx.reply("moo")
+    await bot_functions.call_custom_command(ctx, "r[1d20]", author.id)

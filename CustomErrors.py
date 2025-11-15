@@ -9,3 +9,9 @@ class NotExistingMatching(Exception):
     def init(self, message):
         self.message = message
         super().init(self.message)
+
+class Custom_Command_End(Exception):
+
+    def init(self, message):
+        self.message = message
+        super().init(self.message)
