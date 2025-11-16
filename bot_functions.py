@@ -43,26 +43,39 @@ async def di_command(ctx, to_roll, player_id, temp_adv_modifier=2):
     await r_command(ctx, to_roll, player_id, temp_adv_modifier)
 
 
+###todo: muss noch custom commands ändern können, kann gerade nur normale commands. Saves werden auch nicht abgefangen, maybe in match_substring behandeln
 async def change_command(ctx, request, change_to, player_id):
+    request_type = "attribute"
+    request_long_list = await match_substring(player.attribute_list, request)
 
+    ### todo: in match_string einbinden!
+    if len(request_long_list) == 0:
+        raise CustomErrors.NotExistingMatching
+    ###
 
-    request_long = await match_substring(player.attribute_list, request)
+    #gibt zurück ob das attribut in attribute, custom oder spells ist
+    for k, v in player.attribute_dict.items():
+        if request_long_list[0] in v:
+            request_type = k
+            break
+
     user_name = player.user_dict[player_id]
     att_dict = player.player_attribute_dict[user_name]
 
-    att_name_list = list(att_dict)
-    att_number_list = list(att_dict.values())
+    att_name_list = list(att_dict)                          #gibt alle keys aus dem attribute dict des spielers, der den Command aufgerufen hat
+    att_number_list = list(att_dict.values())               #gibt alle values auf dem attribute dict des spielers, der den command aufgerufen hat
     player_number = list(player.player_attribute_dict)
-    player_number = player_number.index(user_name) + 1
+    player_number = player_number.index(user_name) + 1      #gibt den index des aufrufenden Spielers im player dict
 
-    request_index = att_name_list.index(request_long[0])
+    request_index = att_name_list.index(request_long_list[0])
     old_value = att_number_list[request_index]
     att_number_list[request_index] = change_to
     write_string = str(user_name)
 
     for i in att_number_list:
-        write_string += "," + i
+        write_string += ";" + i
 
+    file_name_string = f'player_{request_type}.txt'
     with open('player_attribute.txt') as file:
         lines = file.readlines()
         if (player_number <= len(lines)):
@@ -72,7 +85,7 @@ async def change_command(ctx, request, change_to, player_id):
                     file.write(line)
 
     player.create_player_dict()
-    return(request_long, old_value)
+    return(request_long_list, old_value)
 
 
 async def split_dice_string(string_w)->list:
@@ -84,6 +97,12 @@ async def split_dice_string(string_w)->list:
         split_string_list.remove("")
     return(split_string_list)
 
+
+async def create_costom_command(ctx, command_name, modifier, player_id):
+    return
+
+async def create_spell_command(ctx, command_name, modifier, player_id, spell_scaling, spell_level):
+    return
 
 async def replace_custom_commands(to_roll, player_id):
     """
@@ -119,13 +138,13 @@ async def replace_custom_commands(to_roll, player_id):
 
     for i in temp_to_roll:
         to_roll += i
-    ####
 
     return(to_roll)
 
 
-# to do Füge überprüfung ob len(matching_list) >1, == 1 oder 0 ein.
+# todo Füge überprüfung ob len(matching_list) >1, == 1 oder 0 ein.
 #werfe error auf >1, return andernfalls
+#todo: füge überprüfung ein, ob saving throw oder nicht, indem to_roll auf sv überprüft wird, maybe return in welcher liste der wert gefunden wurde (normal, save, custom, spell)
 async def match_substring(list_to_search, search_string):
     """
     Looks through a list of strings and returns all strings that match or contain "search_string" as a sub_string

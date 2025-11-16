@@ -1,10 +1,16 @@
 High Prio:
-setall & getall
+match_substring erweitern um code zu entlasten
+change_command() muss auch custom commands ändern können
 selbst commands programmieren können, bzw attribute (.append)
 dm_command
-casing ignorieren bei set und get befehlen
+-s_command(ctx, spellname, spelllevel=0)
+spellslot system implementieren -> dafür zweiten command array in player_spell_list, soll mit -create_custom moonbeam 2d10 1d10 2 gesettet werden können und mit -s moo(nbeam) 2 gewürfelt werden können
 
 Mid Prio:
+longrest und shortrest implementieren
+casing ignorieren bei set und get befehlen
+setall & getall
+different charactersheets for the same player, switchable
 "match_substring" soll auch die abfrage behandeln wie viele Elemente die resultierende Liste enthält, dies wird im code nach jedem Funktionsaufruf individuell abgefragt. Maybe variable länge vorgebbar im Methodenaufruf.
 Original_Input_Modified gibt nicht das richtige Attribut an, wenn in einem standard attribut als modifier mit [] ein nested command programmiert wurde.
     call custom command muss entweder den original input mit übergeben an "var"_command, oder der original input muss in einer globalen variable gespeichert werden.
@@ -12,8 +18,8 @@ exception handling aufräumen & übergeben welches attribut z.B. nicht eindeutig
 lower bound bei 1 bei würfen
 
 Low Prio:
+hp tracken
 Textausgabe bei nat20 o. nat1
-different charactersheets for the same player, switchable
 
 Done:
 savingthrows

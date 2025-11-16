@@ -37,6 +37,10 @@ async def r(ctx, to_roll="1d20", *args):
         await ctx.reply("Attribut-Eingabe existiert nicht")
     except CustomErrors.Custom_Command_End as e:
         print(e)
+    except KeyError as e:
+        print(e)
+        traceback.print_exc()
+        await ctx.reply("Custom Attribut nicht in eigener Liste vorhanden. Use -create_custom um Attribut zu erstellen.")
     except Exception as e:
         print(e)
         traceback.print_exc()
@@ -177,6 +181,29 @@ async def change(ctx, request, change_to, *args):
 @bot.command()
 async def update(ctx):
     player.create_player_dict()
+
+
+@bot.command(aliases=['create'])
+async def create_custom(ctx, command_name, modifier, *args):
+    try:
+        author = ctx.message.author
+
+        if len(args) == 2:
+
+            await bot_functions.create_spell_command(ctx, command_name, modifier, author.id, args[0], args[1])
+        elif len(args) == 0:
+            await bot_functions.create_costom_command(ctx, command_name, modifier, author.id)
+        else:
+            raise CustomErrors.Too_Many_Inputs
+        await ctx.reply("Custom Command wurde erstellt (also, noch nicht wirklich, aber bald)")
+
+    except CustomErrors.Too_Many_Inputs as e:
+        print(e)
+        await ctx.reply("Zu viele Werte übergeben. Sollte '-create_custom command_name modifier' sein. Optional für Spells noch ' spell_skalierung spell_level' eingeben" )
+    except Exception as e:
+        print(e)
+        traceback.print_exc()
+        await ctx.reply("Wompwomp. I actually have no idea how you could even possible fail this one. Formatierung: '-create_custom command_name modifier( spell_skalierung spell_level)' ")
 
 
 ##test##
