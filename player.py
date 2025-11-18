@@ -102,4 +102,3 @@ def set_attribute_dict(user_name):
             i += 2
 
     return(temp_attribute_dict)
-
