@@ -10,5 +10,5 @@ Camo;attack;tohit;damage
 Camo;1d20+11|0;0;0
 Jacky;attack;tohit;damage
 Jacky;tohit|damage;1d20+8;1d8+4
-Leon;attack;tohit;damage;knowledge
-Leon;tohit|damage;1d20+19;1d20+14;di[1d20+4]
+Leon;attack;tohit;damage;knowledge;rayoffrost
+Leon;tohit|damage;19;1d20+14;di[1d20+4];spell[1d20+tohit|1d8,+0,0]

@@ -4,7 +4,7 @@ import CustomErrors
 import player
 from discord.ext import commands
 import bot_functions
-
+from bot_functions import get_command
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -27,6 +27,10 @@ async def r(ctx, to_roll="1d20", *args):
                 to_roll += "|"+ str(item)
         await bot_functions.r_command(ctx, to_roll, author.id)
 
+    except CustomErrors.NotEnoughSpellSlots as e:
+        print(e)
+        traceback.print_exc()
+        await ctx.reply(f"Du hast nicht genug Spell Slots um diesen Spell auf Level {args[0]} zu casten")
     except CustomErrors.NotUniqueMatching as e:                                                             #my custom Error
         print(e)
         traceback.print_exc()
@@ -136,12 +140,11 @@ async def attack(ctx, to_roll="attack", *args):
     
 @bot.command()
 async def get(ctx, *, request):
+
     import bot_functions
     author = ctx.message.author
-    request_long = await bot_functions.match_substring(player.attribute_list_saves, request)
-    user_name = player.user_dict[author.id]
-    att_dict = player.player_attribute_dict[user_name]
-    await ctx.reply(att_dict[request_long[0]])
+    modifier = await bot_functions.get_command(ctx, request, author.id)
+    await ctx.reply(modifier)
 
 
 @bot.command()
@@ -191,15 +194,20 @@ async def create_custom(ctx, command_name, modifier, *args):
         if len(args) == 2:
 
             await bot_functions.create_spell_command(ctx, command_name, modifier, author.id, args[0], args[1])
+            await ctx.reply(f"Der Level {args[1]} Spell {command_name} wurde mit dem Modifier {modifier} erstellt.")
         elif len(args) == 0:
             await bot_functions.create_costom_command(ctx, command_name, modifier, author.id)
+            await ctx.reply(f"Custom Command {command_name} wurde mit dem Modifier {modifier} erstellt.")
         else:
             raise CustomErrors.Too_Many_Inputs
-        await ctx.reply("Custom Command wurde erstellt (also, noch nicht wirklich, aber bald)(also, maybe jetzt schon, 50/50)")
 
     except CustomErrors.Too_Many_Inputs as e:
         print(e)
         await ctx.reply("Zu viele Werte übergeben. Sollte '-create_custom command_name modifier' sein. Optional für Spells noch ' spell_skalierung spell_level' eingeben" )
+    except CustomErrors.NotUniqueMatching as e:
+        print(e)
+        traceback.print_exc()
+        await ctx.reply("Attribut-Eingabe nicht eindeutig")
     except Exception as e:
         print(e)
         traceback.print_exc()

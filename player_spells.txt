@@ -10,5 +10,5 @@ Camo;spell_slots_current;spell_slots_maximum
 Camo;0;0
 Jacky;spell_slots_current;spell_slots_maximum
 Jacky;0;0
-Leon;spell_slots_current;spell_slots_maximum
-Leon;[2,2,0,1,0];[3,2,1,1,1]
+Leon;spell_slots_current;spell_slots_maximum;magicmissile
+Leon;[0,0,0,0,0];[3,2,1,1,1];spell[1d4+1|1d4+1|1d4+1,|1d4+1,1]

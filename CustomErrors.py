@@ -21,3 +21,8 @@ class Too_Many_Inputs(Exception):
     def init(self, message):
         self.message = message
         super().init(self.message)
+
+class NotEnoughSpellSlots(Exception):
+    def init(self, message):
+        self.message = message
+        super().init(self.message)

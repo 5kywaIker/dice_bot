@@ -20,6 +20,7 @@ async def r_command(ctx, to_roll, player_id, temp_adv_modifier=0):
     #auf nested commands prüfen, falls nested command, dann den entsprechend command aufrufen. Nach dem command wird der code beendet. Weitere teile von to_roll werden ignoriert
     if "[" in to_roll:
         await call_custom_command(ctx, to_roll, player_id)
+        raise CustomErrors.Custom_Command_End
 
     #mehrfach_würfeln, und die ergebnisse seperat zurückgeben, falls anzeigender seperator im string "to_roll" ("|" oder " ")
     #if und else können maybe entfernt werden, wenn to_roll.split("|") eine Liste mit einem Element zurückgibt, falls "|" nicht im String enthalten ist
@@ -29,7 +30,7 @@ async def r_command(ctx, to_roll, player_id, temp_adv_modifier=0):
 
         # überprüfe ob to_roll nur modifier enthält, wenn ja, dann erweitere to_roll um 1d20 am anfang. Für custom commands die keinen d20 enthalten und "-r dext|+1 oder so
         if not re.search(r"[a-zA-Z]", dice):
-            dice = "1d20" + str(dice)
+            dice = "1d20" + "+" + str(dice)
 
         roll_result_output_string, roll_result_eval, original_input_modified = await dice_roller.roll_standard(ctx, dice, player_id)
         output_message = str(original_input_modified) + ":" + str(roll_result_output_string) + " = " + str(roll_result_eval)
@@ -45,6 +46,37 @@ async def ad_command(ctx, to_roll, player_id, temp_adv_modifier=1):
 async def di_command(ctx, to_roll, player_id, temp_adv_modifier=2):
     await r_command(ctx, to_roll, player_id, temp_adv_modifier)
 
+async def spell_command(ctx, to_cast, player_id, upcast_level="0"):
+    original_to_cast = to_cast
+    upcast_level_list = upcast_level.split("|")
+    if "" in upcast_level_list:
+        upcast_level_list.remove("")
+        upcast_level = upcast_level_list[0]
+    else:
+        upcast_level = upcast_level_list[0]
+    spell_modifier_list = to_cast.split(",")
+    spell_level = max(int(spell_modifier_list[2]), int(upcast_level))
+    bonus_damage = str(spell_modifier_list[1]) * (spell_level- int(spell_modifier_list[2]))
+    to_cast = str(spell_modifier_list[0]) + bonus_damage
+
+    if spell_level > 0:
+        ssc = await get_command(ctx, "spell_slots_current", player_id)
+        ssc = re.split(r"\W", ssc)
+        while "" in ssc:
+            ssc.remove("")
+        if int(ssc[spell_level-1]) < 1:
+            raise CustomErrors.NotEnoughSpellSlots
+        ssc[spell_level-1] = str(int(ssc[spell_level-1]) - 1)
+        new_spell_slots = "[" + str(ssc[0])
+        if len(ssc) > 1:
+            for slot in ssc[1:]:
+                new_spell_slots += "," + str(slot)
+        new_spell_slots += "]"
+        await change_command(ctx, "spell_slots_current", new_spell_slots, player_id)
+
+    await r_command(ctx, to_cast, player_id, dice_roller.adv_modifier)
+
+    return
 
 #maybe auch im schreibcommand einfach nochmal über play_custom.txt loopen, bis line.replace("\n", "").split(";")[0] == player_name,
 #und dann line.replace("\n", "").split(";")[content(content.index(line)-1).replace("\n", "").split(";").index(to_change)] = to_change
@@ -154,6 +186,34 @@ async def create_costom_command(ctx, command_name, modifier, player_id):
     return
 
 async def create_spell_command(ctx, command_name, modifier, player_id, spell_scaling, spell_level):
+    user_name = player.user_dict[player_id]
+    player_number = list(player.player_attribute_dict)
+    player_number = player_number.index(user_name) * 2
+    write_name_string = str(user_name)
+    write_modifier_string = str(user_name)
+
+    if command_name in player.player_attribute_dict[user_name]:
+        raise CustomErrors.NotUniqueMatching
+
+    modifier = "spell" + str([modifier, spell_scaling, spell_level])
+
+    with open("player_spells.txt") as file:
+        lines = file.readlines()
+        att_name_list = lines[player_number].replace("\n", "").split(";")
+        att_name_list.append(command_name)
+        att_modifier_list = lines[player_number+1].replace("\n", "").split(";")
+        att_modifier_list.append(modifier)
+        for att_name in att_name_list[1:]:
+            write_name_string += ";" + str(att_name)
+        for att_modifier in att_modifier_list[1:]:
+            write_modifier_string += ";" + str(att_modifier)
+        if (player_number <= len(lines)):
+            lines[player_number] = write_name_string + "\n"
+            lines[player_number+1] = write_modifier_string + "\n"
+            with open("player_custom.txt", "w") as file:
+                for line in lines:
+                    file.write(line)
+    return
 
     return
 
@@ -170,7 +230,7 @@ async def replace_custom_attribute(to_roll, player_id):
     for i in range(len(temp_to_roll)):
         temp_einzel_eingabe = temp_to_roll[i]
 
-        custom_attribute_list = await match_substring(player.attribute_list_custom, temp_einzel_eingabe)
+        custom_attribute_list = await match_substring(player.attribute_list_custom_spells, temp_einzel_eingabe)
         if len(custom_attribute_list) == 1:
 
             custom_modifier = str(player.player_attribute_dict.get(temp_player_name)[custom_attribute_list[0]])
@@ -218,6 +278,13 @@ async def match_substring(list_to_search, search_string):
     return(matching_list)
 
 
+async def get_command(ctx, request, player_id, *args):
+    request_long = await match_substring(player.attribute_list, request)
+    user_name = player.user_dict[player_id]
+    att_dict = player.player_attribute_dict[user_name]
+    return(att_dict[request_long[0]])
+
+
 async def call_custom_command(ctx, custom_command, player_id):
     current_module = sys.modules["bot_functions"]
     custom_command_list = re.split(r'\[|\]', custom_command)
@@ -225,7 +292,18 @@ async def call_custom_command(ctx, custom_command, player_id):
         custom_command_list.remove("")
     custom_command = custom_command_list[0]
     custom_command += "_command"
-    await getattr(current_module, custom_command)(ctx, custom_command_list[1], player_id)
+    to_roll = ""
+
+    #maybe behandlung von di[1d20]+2 hier einbauen
+    if len(custom_command_list) > 2:
+        if custom_command == "spell_command":
+            await getattr(current_module, custom_command)(ctx, custom_command_list[1], player_id, custom_command_list[2])
+        else:
+            for modifier in custom_command_list[2:]:
+                to_roll += str(modifier)
+            await getattr(current_module, custom_command)(ctx, to_roll, player_id)
+    else:
+        await getattr(current_module, custom_command)(ctx, custom_command_list[1], player_id)
     dice_roller.adv_modifier = 0
     dice_roller.adv_modifier_attribute = 0
-    raise CustomErrors.Custom_Command_End
+    return

@@ -18,6 +18,7 @@ attribute_list_saves = [] #liste mit den saving throws in den ersten 31 commands
 attribute_list_attribute = [] #enthält normal & saves in der Reihenfolge in der sie in player_attribute.txt stehen
 attribute_list_custom = [] #enthält alle custom attribute von allen spielern zusammengefasst
 attribute_list_spells = [] #enhält alle spell namen von allen spielern zusammengefasst
+attribute_list_custom_spells = []
 attribute_dict = {} #enthält als Key aus welcher Datei das Attribut kommt, und als Value die Liste der Attribute aus der Datei
 
 # on Bot start, lade alle Spieler-Werte aus der Text Datei in die Player Class
@@ -27,6 +28,7 @@ def create_player_dict():
     global attribute_dict
     global attribute_list_normal
     global attribute_list_saves
+    global attribute_list_custom_spells
     user_attribute_dict = {}
     attribute_list = []
 
@@ -38,6 +40,7 @@ def create_player_dict():
     attribute_dict = {"attribute": attribute_list_attribute, "custom": attribute_list_custom, "spells": attribute_list_spells}
     attribute_list_normal = [text for text in attribute_list_attribute if not "save" in text]
     attribute_list_saves = [text for text in attribute_list_attribute if "save" in text]
+    attribute_list_custom_spells = attribute_list_custom + attribute_list_spells
     print(user_attribute_dict)
     return (user_attribute_dict)
 
@@ -63,8 +66,6 @@ def set_attribute_dict(user_name):
                 player_attribute_list = content[i + 1].replace("\n", "").split(";")
                 for i in range(1, len(player_attribute_list)):
                     temp_attribute_dict[attribute_list_temp[i]] = player_attribute_list[i]
-                    if not attribute_list_temp[i] in attribute_list_custom:
-                        attribute_list_custom.append(attribute_list_temp[i])
                 break
             i += 2
 
