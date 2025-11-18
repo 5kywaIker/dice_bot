@@ -160,7 +160,7 @@ async def change(ctx, request, change_to, *args):
         author = ctx.message.author
         request_long, old_value = await bot_functions.change_command(ctx, request, change_to, author.id)
 
-        await ctx.reply(f"Dein {request_long[0]} Eintrag wurde von {old_value} zu {change_to} geändert")
+        await ctx.reply(f"Dein {request_long} Eintrag wurde von {old_value} zu {change_to} geändert")
 
     except CustomErrors.NotUniqueMatching as e:
         print(e)
@@ -175,7 +175,7 @@ async def change(ctx, request, change_to, *args):
     except Exception as e:
         print(e)
         traceback.print_exc()
-        await ctx.reply("ALARM. ALARM. Ein Eindringling. Dachtest du kannst hier einfach so rumschleichen und die Uniform klauen.")
+        await ctx.reply(f"ALARM. ALARM. Ein Eindringling. Dachtest du kannst hier einfach so rumschleichen und eine Uniform klauen. [[{e=}]]")
 
 
 @bot.command()
@@ -203,7 +203,7 @@ async def create_custom(ctx, command_name, modifier, *args):
     except Exception as e:
         print(e)
         traceback.print_exc()
-        await ctx.reply("Wompwomp. I actually have no idea how you could even possible fail this one. Formatierung: '-create_custom command_name modifier( spell_skalierung spell_level)' ")
+        await ctx.reply(f"Wompwomp. I actually have no idea how you could even possible fail this one. Formatierung: '-create_custom command_name modifier( spell_skalierung spell_level)' [[{e=}]]")
 
 
 ##test##

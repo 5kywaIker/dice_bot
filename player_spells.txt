@@ -1,8 +1,14 @@
-name;spell_slots_current;spell_slots_maximum
+Alice;spell_slots_current;spell_slots_maximum
 Alice;0;0
+Drache;spell_slots_current;spell_slots_maximum
 Drache;0;0
+Nick;spell_slots_current;spell_slots_maximum
 Nick;[4,3,2];[4,3,3]
+Eric;spell_slots_current;spell_slots_maximum
 Eric;0;0
+Camo;spell_slots_current;spell_slots_maximum
 Camo;0;0
+Jacky;spell_slots_current;spell_slots_maximum
 Jacky;0;0
-Leon;0;0
+Leon;spell_slots_current;spell_slots_maximum
+Leon;[2,2,0,1,0];[3,2,1,1,1]

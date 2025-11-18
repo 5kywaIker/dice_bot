@@ -1,5 +1,5 @@
 import os
-from dice_bot import bot
+from dice_bot import bot, create_custom
 from dotenv import load_dotenv
 import bot_functions
 import player

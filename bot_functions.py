@@ -3,6 +3,7 @@ import re
 import player
 import CustomErrors
 import dice_roller
+from player import attribute_list
 
 
 #Standard Funktion zum Würfeln. Should move to different file. Handled die Logik fürs Würfeln und die Formatierung der Ausgabe.
@@ -12,7 +13,7 @@ async def r_command(ctx, to_roll, player_id, temp_adv_modifier=0):
     dice_roller.adv_modifier_attribute = temp_adv_modifier
 
     # notwendig, weil -attack sonst nicht seperat ausgeführt und ausgeprinted werden, bzw alle custom-commands mit "|" seperator. Trennung erfolgt unmittelbar danach
-    to_roll = await replace_custom_commands(to_roll, player_id)
+    to_roll = await replace_custom_attribute(to_roll, player_id)
 
     #auf nested commands prüfen, falls nested command, dann den entsprechend command aufrufen. Nach dem command wird der code beendet. Weitere teile von to_roll werden ignoriert
     if "[" in to_roll:
@@ -43,9 +44,12 @@ async def di_command(ctx, to_roll, player_id, temp_adv_modifier=2):
     await r_command(ctx, to_roll, player_id, temp_adv_modifier)
 
 
-###todo: muss noch custom commands ändern können, kann gerade nur normale commands. Saves werden auch nicht abgefangen, maybe in match_substring behandeln
+#maybe auch im schreibcommand einfach nochmal über play_custom.txt loopen, bis line.replace("\n", "").split(";")[0] == player_name,
+#und dann line.replace("\n", "").split(";")[content(content.index(line)-1).replace("\n", "").split(";").index(to_change)] = to_change
 async def change_command(ctx, request, change_to, player_id):
-    request_type = "attribute"
+    request_type = ""               #art des request commands, ob attribute, custom oder spell
+    request_index = 0               #index in der attribute liste des spielers, in welchem der requested command steht (in player_type.txt
+    att_modifier_list = []          #liste mit allen modifiern des spielers aus der jeweiligen player_type.txt
     request_long_list = await match_substring(player.attribute_list, request)
 
     ### todo: in match_string einbinden!
@@ -53,39 +57,59 @@ async def change_command(ctx, request, change_to, player_id):
         raise CustomErrors.NotExistingMatching
     ###
 
+    request_long = request_long_list[0]
+
     #gibt zurück ob das attribut in attribute, custom oder spells ist
     for k, v in player.attribute_dict.items():
-        if request_long_list[0] in v:
+        if request_long in v:
             request_type = k
             break
 
+    if request_type == "":
+        raise CustomErrors.NotExistingMatching
+
+    file_name_string = f'player_{request_type}.txt'
     user_name = player.user_dict[player_id]
     att_dict = player.player_attribute_dict[user_name]
 
     att_name_list = list(att_dict)                          #gibt alle keys aus dem attribute dict des spielers, der den Command aufgerufen hat
-    att_number_list = list(att_dict.values())               #gibt alle values auf dem attribute dict des spielers, der den command aufgerufen hat
     player_number = list(player.player_attribute_dict)
-    player_number = player_number.index(user_name) + 1      #gibt den index des aufrufenden Spielers im player dict
+    player_number = player_number.index(user_name)
 
-    request_index = att_name_list.index(request_long_list[0])
-    old_value = att_number_list[request_index]
-    att_number_list[request_index] = change_to
+    #hole request_index und att_modifier_list aus player_tyoe.txt
+
+    player_number = player_number * 2
+    with open(file_name_string) as file:
+        lines = file.readlines()
+        if (player_number <= len(lines)):
+            att_modifier_list = lines[player_number].replace("\n", "").split(";")
+            for i in range(len(att_modifier_list)):
+                if att_modifier_list[i] == request_long:
+                    request_index = i
+                    att_modifier_list = lines[player_number+1].replace("\n", "").split(";")
+                    break
+    player_number = player_number + 1                       #setze player_number auf die zeile der textdatei in welcher die Modifier des Spielers stehen
+
+
+    old_value = att_modifier_list[request_index]
+    att_modifier_list[request_index] = change_to
     write_string = str(user_name)
 
-    for i in att_number_list:
+    #schreibe in write string die attribute
+    for i in att_modifier_list[1:]:
         write_string += ";" + i
 
-    file_name_string = f'player_{request_type}.txt'
-    with open('player_attribute.txt') as file:
+
+    with open(file_name_string) as file:
         lines = file.readlines()
         if (player_number <= len(lines)):
             lines[player_number] = write_string + "\n"
-            with open('player_attribute.txt', "w") as file:
+            with open(file_name_string, "w") as file:
                 for line in lines:
                     file.write(line)
 
     player.create_player_dict()
-    return(request_long_list, old_value)
+    return(request_long, old_value)
 
 
 async def split_dice_string(string_w)->list:
@@ -99,14 +123,16 @@ async def split_dice_string(string_w)->list:
 
 
 async def create_costom_command(ctx, command_name, modifier, player_id):
+
     return
 
 async def create_spell_command(ctx, command_name, modifier, player_id, spell_scaling, spell_level):
+
     return
 
-async def replace_custom_commands(to_roll, player_id):
+async def replace_custom_attribute(to_roll, player_id):
     """
-    check ob einer der eingabewerte ein custom command ist und ersetze den custom command durch den custom modifier-wert
+    checkt beim würfeln ob einer der eingabewerte ein custom command ist und ersetze den custom command durch den custom modifier-wert
     """
     temp_to_roll = await split_dice_string(to_roll)
     temp_player_name = player.user_dict[player_id]
@@ -126,7 +152,7 @@ async def replace_custom_commands(to_roll, player_id):
                 nested_command_list = await match_substring(player.attribute_list_custom, nested_modifier)
 
                 if len(nested_command_list) == 1:
-                    custom_modifier_list[custom] = await replace_custom_commands(nested_command_list[0], player_id)
+                    custom_modifier_list[custom] = await replace_custom_attribute(nested_command_list[0], player_id)
                 elif len(nested_command_list) > 1:
                     raise CustomErrors.NotUniqueMatching
             for custom in range(len(custom_modifier_list)):
