@@ -1,5 +1,7 @@
 import sys
 import re
+from os import write
+
 import player
 import CustomErrors
 import dice_roller
@@ -123,7 +125,32 @@ async def split_dice_string(string_w)->list:
 
 
 async def create_costom_command(ctx, command_name, modifier, player_id):
+    user_name = player.user_dict[player_id]
+    player_number = list(player.player_attribute_dict)
+    player_number = player_number.index(user_name) * 2
+    write_name_string = str(user_name)
+    write_modifier_string = str(user_name)
 
+    if command_name in player.player_attribute_dict[user_name]:
+        await change_command(ctx, command_name, modifier, player_id)
+        return
+
+    with open("player_custom.txt") as file:
+        lines = file.readlines()
+        att_name_list = lines[player_number].replace("\n", "").split(";")
+        att_name_list.append(command_name)
+        att_modifier_list = lines[player_number+1].replace("\n", "").split(";")
+        att_modifier_list.append(modifier)
+        for att_name in att_name_list[1:]:
+            write_name_string += ";" + str(att_name)
+        for att_modifier in att_modifier_list[1:]:
+            write_modifier_string += ";" + str(att_modifier)
+        if (player_number <= len(lines)):
+            lines[player_number] = write_name_string + "\n"
+            lines[player_number+1] = write_modifier_string + "\n"
+            with open("player_custom.txt", "w") as file:
+                for line in lines:
+                    file.write(line)
     return
 
 async def create_spell_command(ctx, command_name, modifier, player_id, spell_scaling, spell_level):
@@ -136,6 +163,8 @@ async def replace_custom_attribute(to_roll, player_id):
     """
     temp_to_roll = await split_dice_string(to_roll)
     temp_player_name = player.user_dict[player_id]
+    pos1=0
+    pos2=0
     to_roll = ""
 
     for i in range(len(temp_to_roll)):
@@ -146,15 +175,24 @@ async def replace_custom_attribute(to_roll, player_id):
 
             custom_modifier = str(player.player_attribute_dict.get(temp_player_name)[custom_attribute_list[0]])
             custom_modifier_list = await split_dice_string(custom_modifier)
+            #Problem: di[1d20] wird aufgeteilt, dann wird di als attribut gesucht, ist in medicine drin, dadurch fehler. dürfen bei [] nur den bereich im inneren ersetzen
             custom_modifier = ""
-            for custom in range(len(custom_modifier_list)):
-                nested_modifier = custom_modifier_list[custom]
+            temp_custom_modifier_list = custom_modifier_list
+
+            if "[" in custom_modifier_list:
+                pos1 = custom_modifier_list.index("[")
+                pos2 = custom_modifier_list.index("]")
+                temp_custom_modifier_list = custom_modifier_list[pos1:pos2]
+
+            for custom in range(len(temp_custom_modifier_list)):
+                nested_modifier = temp_custom_modifier_list[custom]
                 nested_command_list = await match_substring(player.attribute_list_custom, nested_modifier)
 
                 if len(nested_command_list) == 1:
-                    custom_modifier_list[custom] = await replace_custom_attribute(nested_command_list[0], player_id)
+                    custom_modifier_list[custom+pos1] = await replace_custom_attribute(nested_command_list[0], player_id)
                 elif len(nested_command_list) > 1:
                     raise CustomErrors.NotUniqueMatching
+
             for custom in range(len(custom_modifier_list)):
                 custom_modifier += custom_modifier_list[custom]
             temp_to_roll[i] = custom_modifier

@@ -195,7 +195,7 @@ async def create_custom(ctx, command_name, modifier, *args):
             await bot_functions.create_costom_command(ctx, command_name, modifier, author.id)
         else:
             raise CustomErrors.Too_Many_Inputs
-        await ctx.reply("Custom Command wurde erstellt (also, noch nicht wirklich, aber bald)")
+        await ctx.reply("Custom Command wurde erstellt (also, noch nicht wirklich, aber bald)(also, maybe jetzt schon, 50/50)")
 
     except CustomErrors.Too_Many_Inputs as e:
         print(e)
