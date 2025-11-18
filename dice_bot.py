@@ -196,7 +196,7 @@ async def create_custom(ctx, command_name, modifier, *args):
             await bot_functions.create_spell_command(ctx, command_name, modifier, author.id, args[0], args[1])
             await ctx.reply(f"Der Level {args[1]} Spell {command_name} wurde mit dem Modifier {modifier} erstellt.")
         elif len(args) == 0:
-            await bot_functions.create_costom_command(ctx, command_name, modifier, author.id)
+            await bot_functions.create_custom_command(ctx, command_name, modifier, author.id)
             await ctx.reply(f"Custom Command {command_name} wurde mit dem Modifier {modifier} erstellt.")
         else:
             raise CustomErrors.Too_Many_Inputs

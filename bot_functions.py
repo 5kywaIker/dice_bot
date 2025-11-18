@@ -151,12 +151,12 @@ async def split_dice_string(string_w)->list:
     splittet den string an allen charakteren die nicht Buchstabe oder Zahl sind
     """
     split_string_list = re.split(r'(\W)', string_w)
-    if "" in split_string_list:
+    while "" in split_string_list:
         split_string_list.remove("")
     return(split_string_list)
 
 
-async def create_costom_command(ctx, command_name, modifier, player_id):
+async def create_custom_command(ctx, command_name, modifier, player_id):
     user_name = player.user_dict[player_id]
     player_number = list(player.player_attribute_dict)
     player_number = player_number.index(user_name) * 2
@@ -183,6 +183,8 @@ async def create_costom_command(ctx, command_name, modifier, player_id):
             with open("player_custom.txt", "w") as file:
                 for line in lines:
                     file.write(line)
+
+    player.create_player_dict()
     return
 
 async def create_spell_command(ctx, command_name, modifier, player_id, spell_scaling, spell_level):
@@ -191,11 +193,13 @@ async def create_spell_command(ctx, command_name, modifier, player_id, spell_sca
     player_number = player_number.index(user_name) * 2
     write_name_string = str(user_name)
     write_modifier_string = str(user_name)
+    modifier_string = "spell["
 
     if command_name in player.player_attribute_dict[user_name]:
         raise CustomErrors.NotUniqueMatching
 
-    modifier = "spell" + str([modifier, spell_scaling, spell_level])
+    modifier_string += str(modifier) + "," + str(spell_scaling) + "," + str(spell_level)
+    modifier = modifier_string + "]"
 
     with open("player_spells.txt") as file:
         lines = file.readlines()
@@ -210,12 +214,12 @@ async def create_spell_command(ctx, command_name, modifier, player_id, spell_sca
         if (player_number <= len(lines)):
             lines[player_number] = write_name_string + "\n"
             lines[player_number+1] = write_modifier_string + "\n"
-            with open("player_custom.txt", "w") as file:
+            with open("player_spells.txt", "w") as file:
                 for line in lines:
                     file.write(line)
+    player.create_player_dict()
     return
 
-    return
 
 async def replace_custom_attribute(to_roll, player_id):
     """
@@ -288,7 +292,7 @@ async def get_command(ctx, request, player_id, *args):
 async def call_custom_command(ctx, custom_command, player_id):
     current_module = sys.modules["bot_functions"]
     custom_command_list = re.split(r'\[|\]', custom_command)
-    if "" in custom_command_list:
+    while "" in custom_command_list:
         custom_command_list.remove("")
     custom_command = custom_command_list[0]
     custom_command += "_command"
