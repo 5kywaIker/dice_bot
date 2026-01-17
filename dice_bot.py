@@ -1,5 +1,7 @@
 import traceback
 import discord
+from discord.app_commands import autocomplete
+
 import CustomErrors
 import player
 from discord import app_commands
@@ -32,7 +34,7 @@ async def r(ctx, to_roll="1d20", *args):
 
             await bot_functions.r_command(ctx, to_roll, author.id)
 
-        
+
 @bot.command(aliases=['ra'])
 @roll_channel_check()
 async def ad(ctx, to_roll="1d20", *args):
@@ -72,23 +74,23 @@ async def attack(ctx, to_roll="attack", *args):
         await bot_functions.r_command(ctx, to_roll, author.id)
 
 @bot.command()
-async def get(ctx, *, request):
+async def show(ctx, *, request):
     async with ctx.channel.typing():
         import bot_functions
         author = ctx.message.author
-        modifier = await bot_functions.get_command(ctx, request, author.id)
+        modifier = await bot_functions.show_command(ctx, request, author.id)
         await ctx.reply(modifier)
 
-@bot.command(aliases=['get_all'])
-async def getall(ctx, *args):
+@bot.command(aliases=['show_all'])
+async def showall(ctx, *args):
     async with ctx.channel.typing():
         import bot_functions
         author = ctx.message.author
-        name_list = await bot_functions.getall_command(ctx, author.id)
+        name_list = await bot_functions.showall_command(ctx, author.id)
         await ctx.reply(name_list)
 
 @bot.command(aliases=['del','remove','re'])
-async def delete(ctx, request, *args):
+async def delete(ctx, attribute, *args):
     import bot_functions
 
     async with ctx.channel.typing():
@@ -97,7 +99,7 @@ async def delete(ctx, request, *args):
             return
 
         author = ctx.message.author
-        request_long, old_value = await bot_functions.delete_command(ctx, request, author.id)
+        request_long, old_value = await bot_functions.delete_command(ctx, attribute, author.id)
 
         await ctx.reply(f"Dein {request_long} Eintrag mit dem Inhalt {old_value} wurde gelöscht")
 
@@ -119,19 +121,22 @@ async def change(ctx, attribute, change_to):
         await ctx.reply(f"Dein {request_long} Eintrag wurde von {old_value} zu {change_to} geändert")
 
 @change.autocomplete("attribute")
-async def change_autocomplete(ctx, current):
+async def change_autocomplete(interaction: discord.Interaction, current):
     attribute_list = player.attribute_list
     return [
         app_commands.Choice(name=attribute, value=attribute)
         for attribute in attribute_list if current.lower() in attribute.lower()]
-#@change.autocomplete("change_to")
-#async def change_autocomplete(ctx, current):
-#    current = await bot_functions.match_substring(player.attribute_list, current)
-#    return list(player.player_attribute_dict.get(player.user_dict[ctx.author])[current[0]])
-
-@bot.command()
-async def update(ctx):
-    player.create_player_dict()
+@change.autocomplete("change_to")
+async def change_autocomplete(interaction: discord.Interaction, current):
+    attribute_value_list = []
+    player_name = player.user_dict[interaction.user.id]
+    attribute_long = await bot_functions.match_substring(player.attribute_list, interaction.namespace.attribute)
+    for attribute in attribute_long:
+        value = str(player.player_attribute_dict.get(player_name)[attribute])
+        attribute_value_list.append(value)
+    return [
+        app_commands.Choice(name=change_to, value=change_to)
+        for change_to in attribute_value_list ]
 
 
 @bot.hybrid_command(name="new", with_app_command=True, description="Erstellt ein neues Attribut", aliases=['create_custom', 'create'])
@@ -160,6 +165,9 @@ async def new_spell(ctx, spell_name, modifier, upcast_modifier, spell_level):
         await bot_functions.new_spell_command(ctx, spell_name, modifier, author.id, upcast_modifier, spell_level)
         await ctx.reply(f"Der Level {spell_level} Spell {spell_name} wurde mit dem Modifier {modifier} erstellt.")
 
+@bot.command()
+async def update(ctx):
+    player.create_player_dict()
 
 @bot.event
 async def on_command_error(ctx, error):

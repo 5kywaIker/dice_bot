@@ -61,7 +61,7 @@ async def spell_command(ctx, to_cast, player_id, upcast_level="0"):
     await r_command(ctx, to_cast, player_id, dice_roller.adv_modifier)
 
     if spell_level > 0:
-        ssc = await get_command(ctx, "spell_slots_current", player_id)
+        ssc = await show_command(ctx, "spell_slots_current", player_id)
         ssc = re.split(r"\W", ssc)
         while "" in ssc:
             ssc.remove("")
@@ -328,7 +328,7 @@ async def replace_custom_attribute(to_roll, player_id):
 
     return(to_roll)
 
-async def get_command(ctx, request, player_id, *args):
+async def show_command(ctx, request, player_id, *args):
 
     user_name = player.user_dict[player_id]
 
@@ -346,7 +346,7 @@ async def get_command(ctx, request, player_id, *args):
     att_dict = player.player_attribute_dict[user_name]
     return(att_dict[request_long[0]])
 
-async def getall_command(ctx, player_id):
+async def showall_command(ctx, player_id):
     user_name = player.user_dict[player_id]
     att_dict = player.player_attribute_dict[user_name]
     att_name_list = list(att_dict)
