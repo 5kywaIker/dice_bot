@@ -1,13 +1,16 @@
 High Prio:
+Attribute umschreiben, dass sie die Fähigkeitswerte und den Proficiencybonus referenzieren -> Proficiency Bonus zu attribute_liste hinzufügen
+casing ignorieren bei eingaben
 dm_command
+hidden rolls
+-proficiency_command um einem attribut proficiency hinzuzufügen, oder zu entfernen
 
 Mid Prio:
-longrest und shortrest implementieren
-casing ignorieren bei set und get befehlen
+bei exception handling übergeben welches attribut z.B. nicht eindeutig war
 "match_substring" soll auch die abfrage behandeln wie viele Elemente die resultierende Liste enthält, dies wird im code nach jedem Funktionsaufruf individuell abgefragt. Maybe variable länge vorgebbar im Methodenaufruf.
 Original_Input_Modified gibt nicht das richtige Attribut an, wenn in einem standard attribut als modifier mit [] ein nested command programmiert wurde.
     call custom command muss entweder den original input mit übergeben an "var"_command, oder der original input muss in einer globalen variable gespeichert werden.
-exception handling aufräumen & übergeben welches attribut z.B. nicht eindeutig war
+longrest und shortrest implementieren
 lower bound bei 1 bei würfen
 
 Low Prio:
@@ -16,8 +19,10 @@ setall
 hp tracken
 Textausgabe bei nat20 o. nat1
 
-
 Done:
+exception handling aufräumen
+@commands.check(roll_channel)
+async with ctx.channel.typing()
 match_substring erweitern um code zu entlasten
 savingthrows
 advantage und disadvantage (by default nur auf den ersten würfel)

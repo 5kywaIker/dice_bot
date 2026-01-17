@@ -220,19 +220,7 @@ async def delete_command(ctx, request, player_id):
     player.create_player_dict()
     return(request_long, old_value)
 
-
-
-async def split_dice_string(string_w)->list:
-    """
-    splittet den string an allen charakteren die nicht Buchstabe oder Zahl sind
-    """
-    split_string_list = re.split(r'(\W)', string_w)
-    while "" in split_string_list:
-        split_string_list.remove("")
-    return(split_string_list)
-
-
-async def create_custom_command(ctx, command_name, modifier, player_id):
+async def new_command(ctx, command_name, modifier, player_id):
     user_name = player.user_dict[player_id]
     player_number = list(player.player_attribute_dict)
     player_number = player_number.index(user_name) * 2
@@ -263,7 +251,7 @@ async def create_custom_command(ctx, command_name, modifier, player_id):
     player.create_player_dict()
     return
 
-async def create_spell_command(ctx, command_name, modifier, player_id, spell_scaling, spell_level):
+async def new_spell_command(ctx, command_name, modifier, player_id, spell_scaling, spell_level):
     user_name = player.user_dict[player_id]
     player_number = list(player.player_attribute_dict)
     player_number = player_number.index(user_name) * 2
@@ -311,7 +299,7 @@ async def replace_custom_attribute(to_roll, player_id):
         temp_einzel_eingabe = temp_to_roll[i]
 
         custom_attribute_list = await match_substring(player.attribute_list_custom_spells, temp_einzel_eingabe)
-        if len(custom_attribute_list) == 1:
+        if len(custom_attribute_list) > 0:
 
             custom_modifier = str(player.player_attribute_dict.get(temp_player_name)[custom_attribute_list[0]])
             custom_modifier_list = await split_dice_string(custom_modifier)
@@ -328,35 +316,17 @@ async def replace_custom_attribute(to_roll, player_id):
                 nested_modifier = temp_custom_modifier_list[custom]
                 nested_command_list = await match_substring(player.attribute_list_custom, nested_modifier)
 
-                if len(nested_command_list) == 1:
+                if len(nested_command_list) > 0:
                     custom_modifier_list[custom+pos1] = await replace_custom_attribute(nested_command_list[0], player_id)
-                elif len(nested_command_list) > 1:
-                    raise CustomErrors.NotUniqueMatching
 
             for custom in range(len(custom_modifier_list)):
                 custom_modifier += custom_modifier_list[custom]
             temp_to_roll[i] = custom_modifier
 
-        elif len(custom_attribute_list) > 1:
-            raise CustomErrors.NotUniqueMatching
-
     for i in temp_to_roll:
         to_roll += i
 
     return(to_roll)
-
-
-# todo Füge überprüfung ob len(matching_list) >1, == 1 oder 0 ein.
-#werfe error auf >1, return andernfalls
-#todo: füge überprüfung ein, ob saving throw oder nicht, indem to_roll auf sv überprüft wird, maybe return in welcher liste der wert gefunden wurde (normal, save, custom, spell)
-async def match_substring(list_to_search, search_string):
-    """
-    Looks through a list of strings and returns all strings that start with "search_string" as a sub_string
-    """
-    matching_list = [text for text in list_to_search if text.startswith(search_string)]
-
-    return(matching_list)
-
 
 async def get_command(ctx, request, player_id, *args):
 
@@ -406,5 +376,27 @@ async def call_custom_command(ctx, custom_command, player_id):
     dice_roller.adv_modifier_attribute = 0
     return
 
-async def print_command(ctx, output):
+async def print_command(ctx, output, player_id):
     await ctx.reply(str(output))
+
+
+async def split_dice_string(string_w)->list:
+    """
+    splittet den string an allen charakteren die nicht Buchstabe oder Zahl sind
+    """
+    split_string_list = re.split(r'(\W)', string_w)
+    while "" in split_string_list:
+        split_string_list.remove("")
+    return(split_string_list)
+
+
+# todo Füge überprüfung ob len(matching_list) >1, == 1 oder 0 ein.
+#werfe error auf >1, return andernfalls
+#todo: füge überprüfung ein, ob saving throw oder nicht, indem to_roll auf sv überprüft wird, maybe return in welcher liste der wert gefunden wurde (normal, save, custom, spell)
+async def match_substring(list_to_search, search_string):
+    """
+    Looks through a list of strings and returns all strings that start with "search_string" as a sub_string
+    """
+    matching_list = [text for text in list_to_search if text.startswith(search_string)]
+
+    return(matching_list)
