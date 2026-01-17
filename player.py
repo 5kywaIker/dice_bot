@@ -11,7 +11,7 @@ user_dict = {
     }
 
 
-player_attribute_dict = {}
+player_attribute_dict = {} #dictionary mit {Spielername: {Attributname: Modifier}, ...}
 attribute_list = [] #alle attribute, normal, custom, spells, nicht in richtiger reihenfolge
 attribute_list_normal = [] #liste mit den ersten 31 commands, abzüglich saving throws
 attribute_list_saves = [] #liste mit den saving throws in den ersten 31 commands
@@ -36,12 +36,12 @@ def create_player_dict():
         user_attribute_dict[user_name] = set_attribute_dict(user_name)
     player_attribute_dict = user_attribute_dict
 
-    attribute_list = attribute_list_normal+attribute_list_saves+attribute_list_custom+attribute_list_spells
+
     attribute_dict = {"attribute": attribute_list_attribute, "custom": attribute_list_custom, "spells": attribute_list_spells}
     attribute_list_normal = [text for text in attribute_list_attribute if not "save" in text]
     attribute_list_saves = [text for text in attribute_list_attribute if "save" in text]
     attribute_list_custom_spells = attribute_list_custom + attribute_list_spells
-    print(user_attribute_dict)
+    attribute_list = attribute_list_normal + attribute_list_saves + attribute_list_custom + attribute_list_spells
     return (user_attribute_dict)
 
 

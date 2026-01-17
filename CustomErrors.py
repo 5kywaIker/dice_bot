@@ -1,28 +1,32 @@
+class NotEnoughSpellSlots(Exception):
+
+    def init(self, message):
+        self.message = message
+        super().init(self.message)
+
 class NotUniqueMatching(Exception):
 
     def init(self, message):
         self.message = message
         super().init(self.message)
-    
+
+
 class NotExistingMatching(Exception):
 
     def init(self, message):
         self.message = message
         super().init(self.message)
 
-class Custom_Command_End(Exception):
+
+class CustomCommandEnd(Exception):
 
     def init(self, message):
         self.message = message
         super().init(self.message)
 
-class Too_Many_Inputs(Exception):
 
-    def init(self, message):
-        self.message = message
-        super().init(self.message)
+class TooManyInputs(Exception):
 
-class NotEnoughSpellSlots(Exception):
     def init(self, message):
         self.message = message
         super().init(self.message)

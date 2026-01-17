@@ -130,7 +130,7 @@ async def roll_attribute(ctx, to_roll, player_id):
 
     if "[" in to_roll_attribute_modifier:
         await bot_functions.call_custom_command(ctx, to_roll_attribute_modifier, player_id)
-        raise CustomErrors.Custom_Command_End
+        raise CustomErrors.CustomCommandEnd
 
     # original_input auf attribute_namen_kurz setzen, wenn standard attribut gewürfelt wurde
     if "save" in to_roll:
