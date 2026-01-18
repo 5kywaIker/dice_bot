@@ -5,8 +5,6 @@ from os import write
 import player
 import CustomErrors
 import dice_roller
-from player import attribute_list
-
 
 #Standard Funktion zum Würfeln. Should move to different file. Handled die Logik fürs Würfeln und die Formatierung der Ausgabe.
 async def r_command(ctx, to_roll, player_id, temp_adv_modifier=0):
@@ -15,7 +13,10 @@ async def r_command(ctx, to_roll, player_id, temp_adv_modifier=0):
     dice_roller.adv_modifier_attribute = temp_adv_modifier
 
     # notwendig, weil -attack sonst nicht seperat ausgeführt und ausgeprinted werden, bzw alle custom-commands mit "|" seperator. Trennung erfolgt unmittelbar danach
-    to_roll = await replace_custom_attribute(to_roll, player_id)
+    #to_roll = await replace_custom_attribute(to_roll, player_id)
+
+    #selber command wie above, nur es werden alle attribute ausgetauscht
+    to_roll = await replace_attribute(to_roll, player_id)
 
     #auf nested commands prüfen, falls nested command, dann den entsprechend command aufrufen. Nach dem command wird der code beendet. Weitere teile von to_roll werden ignoriert
     if "[" in to_roll:
@@ -74,8 +75,6 @@ async def spell_command(ctx, to_cast, player_id, upcast_level="0"):
                 new_spell_slots += "," + str(slot)
         new_spell_slots += "]"
         await change_command(ctx, "spell_slots_current", new_spell_slots, player_id)
-
-
 
     return
 
@@ -328,6 +327,51 @@ async def replace_custom_attribute(to_roll, player_id):
 
     return(to_roll)
 
+async def replace_attribute(to_roll, player_id):
+    """
+    checkt beim würfeln ob einer der eingabewerte ein attribut ist und ersetze das Attribut durch den modifier-wert.
+    Ist der selbe Code wie replace_custom_attribute, nur der match_substring Aufruf übergibt die Liste mit allem Attributen.
+    Der Rekursive Aufruf ruft auch sich selber auf.
+    """
+    temp_to_roll = await split_dice_string(to_roll)
+    temp_player_name = player.user_dict[player_id]
+    pos1=0
+    pos2=0
+    to_roll = ""
+
+    for i in range(len(temp_to_roll)):
+        temp_einzel_eingabe = temp_to_roll[i]
+
+        custom_attribute_list = await match_substring(player.attribute_list, temp_einzel_eingabe)
+        if len(custom_attribute_list) > 0:
+
+            custom_modifier = str(player.player_attribute_dict.get(temp_player_name)[custom_attribute_list[0]])
+            custom_modifier_list = await split_dice_string(custom_modifier)
+            #Problem: di[1d20] wird aufgeteilt, dann wird di als attribut gesucht, ist in medicine drin, dadurch fehler. dürfen bei [] nur den bereich im inneren ersetzen
+            custom_modifier = ""
+            temp_custom_modifier_list = custom_modifier_list
+
+            if "[" in custom_modifier_list:
+                pos1 = custom_modifier_list.index("[")
+                pos2 = custom_modifier_list.index("]")
+                temp_custom_modifier_list = custom_modifier_list[pos1:pos2]
+
+            for custom in range(len(temp_custom_modifier_list)):
+                nested_modifier = temp_custom_modifier_list[custom]
+                nested_command_list = await match_substring(player.attribute_list_custom, nested_modifier)
+
+                if len(nested_command_list) > 0:
+                    custom_modifier_list[custom+pos1] = await replace_attribute(nested_command_list[0], player_id)
+
+            for custom in range(len(custom_modifier_list)):
+                custom_modifier += custom_modifier_list[custom]
+            temp_to_roll[i] = custom_modifier
+
+    for i in temp_to_roll:
+        to_roll += i
+
+    return(to_roll)
+
 async def show_command(ctx, request, player_id, *args):
 
     user_name = player.user_dict[player_id]
@@ -350,12 +394,12 @@ async def showall_command(ctx, player_id):
     user_name = player.user_dict[player_id]
     att_dict = player.player_attribute_dict[user_name]
     att_name_list = list(att_dict)
-    return(att_name_list)
+    return(att_dict)
 
 
 async def call_custom_command(ctx, custom_command, player_id):
     current_module = sys.modules["bot_functions"]
-    custom_command_list = re.split(r'\[|\]', custom_command)
+    custom_command_list = re.split(r"\[|\]", custom_command)
     while "" in custom_command_list:
         custom_command_list.remove("")
     custom_command = custom_command_list[0]

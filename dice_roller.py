@@ -17,6 +17,8 @@ async def roll_standard(ctx, to_roll, player_id):
     # Teile den Input Befehl in ein Array auf mit selbstgebauter funktion weiter unten
     # aus '1d20+1d10+7' wird ['1d20', '+', '1d10', '+', '7']
     to_roll_list = await bot_functions.split_dice_string(to_roll)
+    while " " in to_roll_list:
+        to_roll_list.remove(" ")
 
     # gehe das Array durch, wenn ein Eintrag "d" enthält, würfele den entsprechenden Würfel
     # tracke die Ergebnisse in zwei verschiedenen Strings, eval & output
@@ -119,8 +121,6 @@ async def roll_attribute(ctx, to_roll, player_id):
 
     if len(to_roll) == 0:
         raise CustomErrors.NotExistingMatching
-    if len(to_roll) > 1:
-        raise CustomErrors.NotUniqueMatching  # custom Error
 
     to_roll = to_roll[0]
 
@@ -143,7 +143,7 @@ async def roll_attribute(ctx, to_roll, player_id):
     if "d" in to_roll_attribute_modifier:
         roll_result_output, roll_result_eval, original_input_modified = await roll_standard(ctx, str(to_roll_attribute_modifier), player_id)
     else:
-        to_roll_attribute_modifier = int(to_roll_attribute_modifier)  # remove extra leerzeichen, oder mathematische operanten
+        to_roll_attribute_modifier = int(to_roll_attribute_modifier)
         roll_result_output, roll_result_eval = await roll_dice()
 
         roll_result_eval += "+" + str(to_roll_attribute_modifier)

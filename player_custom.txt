@@ -1,14 +1,14 @@
-Alice;attack;tohit;damage
-Alice;1d20+15|1d12+11;1d20+15;1d12+11
-Drache;attack;tohit;damage;crown
-Drache;tohit|damage;1d20+10;1d10+6;1d6
-Nick;attack;tohit;damage
-Nick;1d20+9;1d20+9;2d6+5+1d8
+Alice;attack;tohit;damage;proficiency;angriff
+Alice;1d20+15|1d12+11;1d20+15;1d12+11;4;1d20+15
+Drache;attack;tohit;damage;proficiency
+Drache;tohit|damage;1d20+10;1d10+6;4
+Nick;attack;tohit;damage;proficiency;crit
+Nick;tohit|damage;1d20+9;2d6+5+1d8;4;2d6+1d8
 Eric;attack;tohit;damage
-Eric;tohit|damage;1d20+8;3d10+5
+Eric;tohit|damage;1d20+5;3d10+5
 Camo;attack;tohit;damage
 Camo;1d20+11|0;0;0
-Jacky;attack;tohit;damage
-Jacky;tohit|damage;1d20+8;1d8+4
-Leon;attack;tohit;damage;honeydukes;bread
-Leon;tohit|damage;10;1d8+5;1d20+9-dex;print["Brot"]
+Jacky;attack;tohit;damage;proficiency;angriff;owlangriff
+Jacky;tohit|damage;1d20+10;1d8+4;4;1d20+10;1d20+7|1d4+7
+Leon;attack;tohit;damage;honeydukes;proficiency;bread;rage;unrage
+Leon;tohit|damage;10;1d8+6;1d20+9-dex;5;print["Brot"];change[stre ad[6]];change[stre 6]

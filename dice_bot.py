@@ -18,9 +18,10 @@ async def on_ready():
     await bot.tree.sync(guild=discord.Object(id=1174375949081514014))
 
 def roll_channel_check():
-    def predicate(interaction: discord.Interaction) -> bool:
-        return interaction.channel.name == "they-see-me-rolling" or interaction.channel.name == "test"
-    return app_commands.check(predicate)
+    def predicate(ctx) -> bool:
+        print(ctx.channel.name == "they-see-me-rolling")
+        return ctx.channel.name == "they-see-me-rolling" or ctx.channel.name == "test"
+    return commands.check(predicate)
 
 @bot.command(aliases=['t', 'rm'])
 @roll_channel_check()
@@ -32,7 +33,7 @@ async def r(ctx, to_roll="1d20", *args):
             for item in args:
                 to_roll += "|"+ str(item)
 
-            await bot_functions.r_command(ctx, to_roll, author.id)
+        await bot_functions.r_command(ctx, to_roll, author.id)
 
 
 @bot.command(aliases=['ra'])
@@ -40,8 +41,6 @@ async def r(ctx, to_roll="1d20", *args):
 async def ad(ctx, to_roll="1d20", *args):
     #-ad +modifier würfeln, standard wurf auch ausführen wenn nur modifier übergeben wird
     #dafür überprüfen ob ein Buchstabe im Inputstring enthalten ist, ansonsten wurden nur modifier übergeben und der string sollte um "1d20" erweitert werden
-
-    import bot_functions
     author = ctx.message.author
 
     async with ctx.channel.typing():
@@ -53,7 +52,6 @@ async def ad(ctx, to_roll="1d20", *args):
 @bot.command(aliases=['rd'])
 @roll_channel_check()
 async def di(ctx, to_roll="1d20", *args):
-    import bot_functions
     author = ctx.message.author
     async with ctx.channel.typing():
         if len(args) != 0:
@@ -62,6 +60,7 @@ async def di(ctx, to_roll="1d20", *args):
         await bot_functions.di_command(ctx, to_roll, author.id, 2)
 
 @bot.command(aliases=['att','at','atta','attac'])
+@roll_channel_check()
 async def attack(ctx, to_roll="attack", *args):
     author = ctx.message.author
     async with ctx.channel.typing():
@@ -74,6 +73,7 @@ async def attack(ctx, to_roll="attack", *args):
         await bot_functions.r_command(ctx, to_roll, author.id)
 
 @bot.command()
+@roll_channel_check()
 async def show(ctx, *, request):
     async with ctx.channel.typing():
         import bot_functions
@@ -82,6 +82,7 @@ async def show(ctx, *, request):
         await ctx.reply(modifier)
 
 @bot.command(aliases=['show_all'])
+@roll_channel_check()
 async def showall(ctx, *args):
     async with ctx.channel.typing():
         import bot_functions
@@ -90,6 +91,7 @@ async def showall(ctx, *args):
         await ctx.reply(name_list)
 
 @bot.command(aliases=['del','remove','re'])
+@roll_channel_check()
 async def delete(ctx, attribute, *args):
     import bot_functions
 
@@ -107,6 +109,7 @@ async def delete(ctx, attribute, *args):
 @bot.hybrid_command(name="change", with_app_command=True, description="Ändert den Wert eines Attributes", aliases=["change_attr"])
 @app_commands.guilds(discord.Object(id=1174375949081514014))
 @app_commands.describe(attribute='Name des Attributs', change_to='Neuer Modifier',)
+@roll_channel_check()
 async def change(ctx, attribute, change_to):
     import bot_functions
 
@@ -121,11 +124,13 @@ async def change(ctx, attribute, change_to):
         await ctx.reply(f"Dein {request_long} Eintrag wurde von {old_value} zu {change_to} geändert")
 
 @change.autocomplete("attribute")
+@roll_channel_check()
 async def change_autocomplete(interaction: discord.Interaction, current):
     attribute_list = player.attribute_list
-    return [
-        app_commands.Choice(name=attribute, value=attribute)
-        for attribute in attribute_list if current.lower() in attribute.lower()]
+    return_list = [app_commands.Choice(name=attribute, value=attribute) for attribute in attribute_list if current.lower() in attribute.lower()]
+    if len(return_list)>25:
+        return_list = return_list[:25]
+    return return_list
 @change.autocomplete("change_to")
 async def change_autocomplete(interaction: discord.Interaction, current):
     attribute_value_list = []
@@ -134,13 +139,15 @@ async def change_autocomplete(interaction: discord.Interaction, current):
     for attribute in attribute_long:
         value = str(player.player_attribute_dict.get(player_name)[attribute])
         attribute_value_list.append(value)
-    return [
-        app_commands.Choice(name=change_to, value=change_to)
-        for change_to in attribute_value_list ]
+    return_list = [app_commands.Choice(name=change_to, value=change_to) for change_to in attribute_value_list if current.lower() in change_to.lower()]
+    if len(return_list)>25:
+        return_list = return_list[:25]
+    return return_list
 
 
 @bot.hybrid_command(name="new", with_app_command=True, description="Erstellt ein neues Attribut", aliases=['create_custom', 'create'])
 @app_commands.guilds(discord.Object(id=1174375949081514014))
+@roll_channel_check()
 async def new(ctx, command_name, modifier):
     """
     Adds a custom modifier either to the player_custom.txt or to the players_spells.txt. Eingabeformat: -new attributname was_zu_würfeln_ist
@@ -159,6 +166,7 @@ async def new(ctx, command_name, modifier):
 @app_commands.describe(spell_name='Name des neuen Spells', modifier='Was gewürfelt wird, wenn man den Spell castet',
                        upcast_modifier="Was pro Upcast Level zusätzlich gewürfelt wird, z.B. '+1d6'. Das Pluszeichen ist wichtig.",
                        spell_level="das Grundlevel des Spells. Ist 0 bei cantrips.")
+@roll_channel_check()
 async def new_spell(ctx, spell_name, modifier, upcast_modifier, spell_level):
     async with ctx.channel.typing():
         author = ctx.message.author
@@ -166,6 +174,7 @@ async def new_spell(ctx, spell_name, modifier, upcast_modifier, spell_level):
         await ctx.reply(f"Der Level {spell_level} Spell {spell_name} wurde mit dem Modifier {modifier} erstellt.")
 
 @bot.command()
+@roll_channel_check()
 async def update(ctx):
     player.create_player_dict()
 
