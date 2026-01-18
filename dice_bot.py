@@ -19,7 +19,6 @@ async def on_ready():
 
 def roll_channel_check():
     def predicate(ctx) -> bool:
-        print(ctx.channel.name == "they-see-me-rolling")
         return ctx.channel.name == "they-see-me-rolling" or ctx.channel.name == "test"
     return commands.check(predicate)
 
@@ -121,7 +120,6 @@ async def change(ctx, attribute, change_to):
         author = ctx.message.author
         request_long, old_value = await bot_functions.change_command(ctx, attribute, change_to, author.id)
 
-        await ctx.reply(f"Dein {request_long} Eintrag wurde von {old_value} zu {change_to} geändert")
 
 @change.autocomplete("attribute")
 @roll_channel_check()
@@ -179,7 +177,7 @@ async def update(ctx):
     player.create_player_dict()
 
 @bot.event
-async def on_command_error(ctx, error):
+async def on_command_error(ctx, error, *args):
     if isinstance(error.original, CustomErrors.NotUniqueMatching):
         await ctx.reply("Attribut Eingabe nicht eindeutig.")
     elif isinstance(error.original, IndexError):
@@ -199,6 +197,7 @@ async def on_command_error(ctx, error):
     else:
         print(error)
         traceback.print_exc()
+        print(args)
         await ctx.reply(f"Error - {error}")
 
 

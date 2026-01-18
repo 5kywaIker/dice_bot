@@ -11,4 +11,4 @@ Camo;0;0
 Jacky;spell_slots_current;spell_slots_maximum;curewounds
 Jacky;[3,3,3];[4,3,3];spell[1d8+wis,+1d8,1]
 Leon;spell_slots_current;spell_slots_maximum;magicmissile;curewounds
-Leon;[16,22,22,22,21];[3,2,1,1,1];spell[1d4+1|1d4+1|1d4+1,|1d4+1,1];spell[1d8+tohit,+1d8,1]
+Leon;[12,22,22,22,21];[3,2,1,1,1];spell[1d4+1|1d4+1|1d4+1,|1d4+1,1];spell[1d8+tohit,+1d8,1]

@@ -1,11 +1,17 @@
 High Prio:
-Attribute umschreiben, dass sie die Fähigkeitswerte und den Proficiencybonus referenzieren -> Proficiency Bonus zu attribute_liste hinzufügen
+attribute calls im roll channel, ohne -r davor sollen trotzdem ausgeführt werden. @bot.event() on_message dafür nutzen.
+beim Aufruf von replace_attribute zu Beginn von r_command soll der originale Input erhalten bleiben und mit weitergegeben werden um ihn am schluss auszuprinten.
 casing ignorieren bei eingaben
+read und write aktionen in eine eigene funktion schreiben. Aktuell führen 6 versch Funktionen fast genau den gleichen Code zum schreiben und lesen aus.
+
+Mid Prio:
+subembedded excecutable commands, wie z.B. /new damageplus change[str, show{str}+1]
+    show soll vor change ausgeführt werden.
+call custom command muss eine variable anzahl an Parametern übergeben können, da verschiedene commands verschiedene anzahl an param nehmen (maybe mit **kwargs geben oder so).
+    Ansonsten muss die Anzahl an param gestreamlined werden.
 dm_command
 hidden rolls
 -proficiency_command um einem attribut proficiency hinzuzufügen, oder zu entfernen
-
-Mid Prio:
 bei exception handling übergeben welches attribut z.B. nicht eindeutig war
 "match_substring" soll auch die abfrage behandeln wie viele Elemente die resultierende Liste enthält, dies wird im code nach jedem Funktionsaufruf individuell abgefragt. Maybe variable länge vorgebbar im Methodenaufruf.
 Original_Input_Modified gibt nicht das richtige Attribut an, wenn in einem standard attribut als modifier mit [] ein nested command programmiert wurde.
@@ -20,6 +26,7 @@ hp tracken
 Textausgabe bei nat20 o. nat1
 
 Done:
+Attribute umschreiben, dass sie die Fähigkeitswerte und den Proficiencybonus referenzieren -> Proficiency Bonus zu attribute_liste hinzufügen
 exception handling aufräumen
 @commands.check(roll_channel)
 async with ctx.channel.typing()

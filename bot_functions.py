@@ -12,20 +12,27 @@ async def r_command(ctx, to_roll, player_id, temp_adv_modifier=0):
     dice_roller.adv_modifier = temp_adv_modifier
     dice_roller.adv_modifier_attribute = temp_adv_modifier
 
-    # notwendig, weil -attack sonst nicht seperat ausgeführt und ausgeprinted werden, bzw alle custom-commands mit "|" seperator. Trennung erfolgt unmittelbar danach
+    if "sav" in to_roll or "sv" in to_roll:  # überprüfen ob das Attr ein Modifier ist
+        to_roll = re.sub(r"(sav|sv).*", "", to_roll)
+        to_roll = await match_substring(player.attribute_list_saves, to_roll)
+        to_roll = to_roll[0]
+
+    # selber command wie below, nur es werden alle attribute ausgetauscht
     #to_roll = await replace_custom_attribute(to_roll, player_id)
 
-    #selber command wie above, nur es werden alle attribute ausgetauscht
-    to_roll = await replace_attribute(to_roll, player_id)
-
-    #auf nested commands prüfen, falls nested command, dann den entsprechend command aufrufen. Nach dem command wird der code beendet. Weitere teile von to_roll werden ignoriert
-    if "[" in to_roll:
-        await call_custom_command(ctx, to_roll, player_id)
-        raise CustomErrors.CustomCommandEnd
+    #notwendig, weil -attack sonst nicht seperat ausgeführt und ausgeprinted werden, bzw alle custom-commands mit "|" seperator. Trennung erfolgt unmittelbar danach
+    if "[" not in to_roll:
+        to_roll = await replace_attribute(to_roll, player_id)
 
     #mehrfach_würfeln, und die ergebnisse seperat zurückgeben, falls anzeigender seperator im string "to_roll" ("|" oder " ")
     to_roll = to_roll.split("|")
     for dice in to_roll:
+
+        # auf nested commands prüfen, falls nested command, dann den entsprechend command aufrufen. Nach dem command wird der code beendet. Weitere teile von to_roll werden ignoriert
+        # Aktuell wird nur die erste eckige klammer ausgeführt, bzw mehrere Eckige Klammern breaken call custom command
+        if "[" in dice:
+            await call_custom_command(ctx, dice, player_id)
+            continue
 
         # überprüfe ob to_roll nur modifier enthält, wenn ja, dann erweitere to_roll um 1d20 am anfang. Für custom commands die keinen d20 enthalten und "-r dext|+1 oder so
         if not re.search(r"[a-zA-Z]", dice):
@@ -143,6 +150,7 @@ async def change_command(ctx, request, change_to, player_id):
                     file.write(line)
 
     player.create_player_dict()
+    await ctx.reply(f"Dein {request_long} Eintrag wurde von {old_value} zu {change_to} geändert")
     return(request_long, old_value)
 
 
@@ -351,17 +359,16 @@ async def replace_attribute(to_roll, player_id):
             custom_modifier = ""
             temp_custom_modifier_list = custom_modifier_list
 
-            if "[" in custom_modifier_list:
-                pos1 = custom_modifier_list.index("[")
-                pos2 = custom_modifier_list.index("]")
-                temp_custom_modifier_list = custom_modifier_list[pos1:pos2]
+            while " " in custom_modifier_list:
+                custom_modifier_list.remove(" ")
 
-            for custom in range(len(temp_custom_modifier_list)):
-                nested_modifier = temp_custom_modifier_list[custom]
-                nested_command_list = await match_substring(player.attribute_list_custom, nested_modifier)
+            if "[" not in custom_modifier_list:
+                for custom in range(len(temp_custom_modifier_list)):
+                    nested_modifier = temp_custom_modifier_list[custom]
+                    nested_command_list = await match_substring(player.attribute_list, nested_modifier)
 
-                if len(nested_command_list) > 0:
-                    custom_modifier_list[custom+pos1] = await replace_attribute(nested_command_list[0], player_id)
+                    if len(nested_command_list) > 0:
+                        custom_modifier_list[custom+pos1] = await replace_attribute(nested_command_list[0], player_id)
 
             for custom in range(len(custom_modifier_list)):
                 custom_modifier += custom_modifier_list[custom]
@@ -399,21 +406,40 @@ async def showall_command(ctx, player_id):
 
 async def call_custom_command(ctx, custom_command, player_id):
     current_module = sys.modules["bot_functions"]
-    custom_command_list = re.split(r"\[|\]", custom_command)
+
+    #change[stre ad[6]] funktioniert nicht, weil die eckigen klammern im inneren auch aufgelöst werden. Darf nur an der ersten und letzten Klammer splitten.
+    #nach dem initialen split muss das innere der klammer noch gesplittet werden. Maybe syntax Kommata, wie bei spell aufrufen
+    #ad[6]+5 funktioniert auch nicht
+    #nuke the entire thing and rewrite it properly.
+    #input an der ersten und letzten klammer splitten. Alles dazwischen bei kommas trennen (was ist mit strings mit kommas (s. print comm)). Was machen wir mit input hinter den eckigen klammern?
+
+    #custom_command_list = re.split(r"\[|\]", custom_command)
+    custom_command_list = custom_command.rsplit(']', 1)
+    custom_command_list2 = custom_command_list[0].split("[", 1)
+    custom_command_list.pop(0)
+    custom_command_list = custom_command_list2+custom_command_list
+
     while "" in custom_command_list:
         custom_command_list.remove("")
     custom_command = custom_command_list[0]
     custom_command += "_command"
     to_roll = ""
 
-    #maybe behandlung von di[1d20]+2 hier einbauen
+
+    #if abfragen durch funktionsaufruf mit *args behandeln
     if len(custom_command_list) > 2:
         if custom_command == "spell_command":
             await getattr(current_module, custom_command)(ctx, custom_command_list[1], player_id, custom_command_list[2])
+        elif custom_command == "change_command":
+            custom_command_list[1] = custom_command_list[1].split(",")
+            await getattr(current_module, custom_command)(ctx, custom_command_list[1][0], custom_command_list[1][1], player_id)
         else:
             for modifier in custom_command_list[2:]:
                 to_roll += str(modifier)
             await getattr(current_module, custom_command)(ctx, to_roll, player_id)
+    elif custom_command == "change_command":
+        custom_command_list[1] = custom_command_list[1].split(",")
+        await getattr(current_module, custom_command)(ctx, *custom_command_list[1], player_id)
     else:
         await getattr(current_module, custom_command)(ctx, custom_command_list[1], player_id)
     dice_roller.adv_modifier = 0

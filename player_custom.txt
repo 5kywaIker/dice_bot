@@ -1,5 +1,5 @@
-Alice;attack;tohit;damage;proficiency;angriff
-Alice;1d20+15|1d12+11;1d20+15;1d12+11;4;1d20+15
+Alice;attack;tohit;damage;proficiency;angriff;rage
+Alice;1d20+15|1d12+11;1d20+15;1d12+11;4;1d20+15;change[stre, ad[10]]|change[damage, 1d12+14]
 Drache;attack;tohit;damage;proficiency
 Drache;tohit|damage;1d20+10;1d10+6;4
 Nick;attack;tohit;damage;proficiency;crit
@@ -11,4 +11,4 @@ Camo;1d20+11|0;0;0
 Jacky;attack;tohit;damage;proficiency;angriff;owlangriff
 Jacky;tohit|damage;1d20+10;1d8+4;4;1d20+10;1d20+7|1d4+7
 Leon;attack;tohit;damage;honeydukes;proficiency;bread;rage;unrage
-Leon;tohit|damage;10;1d8+6;1d20+9-dex;5;print["Brot"];change[stre ad[6]];change[stre 6]
+Leon;tohit|damage;10;1d20+12;1d20+9-dex;5;print["Brot"];change[stre, ad[6]]|change[damage, 1d20+12];change[stre, 6]|change[damage, 1d20+9]
