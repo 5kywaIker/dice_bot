@@ -107,9 +107,24 @@ async def change(ctx, attribute, change_to):
         author = ctx.message.author
         request_long, old_value = await bot_commands.change_command(ctx, attribute, change_to, author.id)
 
-@change.autocomplete("attribute")
 @delete.autocomplete("attribute")
+async def delete_autocomplete(interaction: discord.Interaction, current):
+    """Wenn der Spieler /delete ausführt, werden alle Attribute des Spielers aus player_custom und player_spells angezeigt."""
+    #Da nur aus _custom und _spells gelöscht werden darf, werden auch nur Elemente hinter "persuasion" angezeigt (das letzte Element in _attribute).
+    #wenn man player.attribute_list_custom_spells nimmt, würde auch custom attribute von anderen Spielern angezeigt werden, darum wird das player_attribute_dict gerufen.
+    player_name = player.user_dict[interaction.user.id]
+    attribute_list = list(player.player_attribute_dict.get(player_name).keys())
+    cut_point = attribute_list.index("persuasion") + 1
+    attribute_list = attribute_list[cut_point:]
+    return_list = [app_commands.Choice(name=attribute, value=attribute) for attribute in attribute_list if
+                   current.lower() in attribute.lower()]
+    if len(return_list) > 25:
+        return_list = return_list[-25:]
+    return return_list
+@change.autocomplete("attribute")
 async def change_autocomplete(interaction: discord.Interaction, current):
+    """Wenn der Spieler /change ausführt, werden für die Eingabe Attribute die ersten 25 Attribute aus attribute_list angezeigt."""
+    #maybe auch noch ändern, dass er list(player.player_attribute_dict.get(player_name).keys()) statt attribute_list nimmt, um keine Attribute von anderen Leuten vorgeschlagen zu bekommen.
     attribute_list = player.attribute_list
     return_list = [app_commands.Choice(name=attribute, value=attribute) for attribute in attribute_list if current.lower() in attribute.lower()]
     if len(return_list)>25:
@@ -117,6 +132,7 @@ async def change_autocomplete(interaction: discord.Interaction, current):
     return return_list
 @change.autocomplete("change_to")
 async def change_autocomplete(interaction: discord.Interaction, current):
+    """Wenn der Spieler /change ausführt, wird für die Eingabe change_to der Modifier für das in "attribute" ausgewählte Attribut angezeigt."""
     attribute_value_list = []
     player_name = player.user_dict[interaction.user.id]
     attribute_long = await bot_functions.match_substring(player.attribute_list, interaction.namespace.attribute)
@@ -165,30 +181,33 @@ async def update(ctx):
 #TODO on_error handler schreiben, der Errors abfängt, die beim fehlerhaften Aufruf von Befehlen auftreten
 @bot.event
 async def on_command_error(ctx, error, *args):
-    if isinstance(error.original, CustomErrors.NotUniqueMatching):
-        await ctx.reply(f'Attribut Eingabe "{error.original.attr}" nicht eindeutig.')
-    elif isinstance(error.original, IndexError):
-        await ctx.reply('Attribut Eingabe existiert nicht.')
-    elif isinstance(error.original, CustomErrors.NotExistingMatching):
-        await ctx.reply(f'Attribut Eingabe "{error.original.attr}" existiert nicht. Wenn du dich nicht vertippt hast, kannst du es mit /new erstellen')
-    elif isinstance(error.original, CustomErrors.AlreadyExisistingError):
-        await ctx.reply(f'Das Attribut "{error.original.attr}" existiert bereits. Benutze /change um es zu verändern.')
-    elif isinstance(error.original, commands.MissingRequiredArgument):
-        await ctx.reply('Falsche Eingabe. Übergebe entweder zwei Paramter: "Name_des_Attributs" "Wert des Attributs" um ein Attribut zu erstellen, oder vier Parameter: "Name_des_Spells" "Was_der_Spell_würfeln_soll" "+was_beim_upcast_drauf_kommt" "base_Level_des_spells"' )
-    elif isinstance(error.original, CustomErrors.SpecificError):
-        await ctx.reply(error.original.message)
-    elif isinstance(error.original, CustomErrors.TooManyInputs):
-        await ctx.reply('Zu viele Werte übergeben. Sollte "-new command_name modifier" sein. Optional für Spells noch "spell_skalierung spell_level" eingeben' )
-    elif isinstance(error.original, CustomErrors.CustomCommandEnd):
-        print(error)
-    elif isinstance(error.original, KeyError):
-        await ctx.reply('Custom Attribut nicht in eigener Liste vorhanden. Use -new um Attribut zu erstellen.')
-    else:
+    try:
+        if isinstance(error.original, CustomErrors.NotUniqueMatching):
+            await ctx.reply(f'Attribut Eingabe "{error.original.attr}" nicht eindeutig.')
+        elif isinstance(error.original, CustomErrors.NotExistingMatching):
+            await ctx.reply(f'Attribut Eingabe "{error.original.attr}" existiert nicht. Wenn du dich nicht vertippt hast, kannst du es mit /new erstellen')
+        elif isinstance(error.original, CustomErrors.AlreadyExisistingError):
+            await ctx.reply(f'Das Attribut "{error.original.attr}" existiert bereits. Benutze /change um es zu verändern.')
+        elif isinstance(error.original, commands.MissingRequiredArgument):
+            await ctx.reply('Falsche Eingabe. Übergebe entweder zwei Paramter: "Name_des_Attributs" "Wert des Attributs" um ein Attribut zu erstellen, oder vier Parameter: "Name_des_Spells" "Was_der_Spell_würfeln_soll" "+was_beim_upcast_drauf_kommt" "base_Level_des_spells"' )
+        elif isinstance(error.original, CustomErrors.SpecificError):
+            await ctx.reply(error.original.message)
+        elif isinstance(error.original, CustomErrors.TooManyInputs):
+            await ctx.reply('Zu viele Werte übergeben. Sollte "-new command_name modifier" sein. Optional für Spells noch "spell_skalierung spell_level" eingeben' )
+        elif isinstance(error.original, CustomErrors.CustomCommandEnd):
+            print(error)
+        elif isinstance(error.original.original, KeyError):
+            await ctx.reply('Custom Attribut nicht in eigener Liste vorhanden. Use -new um Attribut zu erstellen.')
+        elif isinstance(error.original.original, IndexError):
+            await ctx.reply('Attribut Eingabe existiert nicht.')
+        else:
+            print(error)
+            traceback.print_exc()
+            await ctx.reply(f"Error - {error}")
+    except Exception:
         print(error)
         traceback.print_exc()
-        print(args)
         await ctx.reply(f"Error - {error}")
-
 
 ##test##
 @bot.hybrid_command(name="test", with_app_command=True, description="Testing")
