@@ -1,14 +1,16 @@
 High Prio:
 attribute calls im roll channel, ohne -r davor sollen trotzdem ausgeführt werden. @bot.event() on_message dafür nutzen.
+subembedded excecutable commands, wie z.B. /new damageplus change[str, show{str}+1]
+    show soll vor change ausgeführt werden.
+math command um bei change[get{}+1] nicht mit 6+1-1+1-1+1 zu enden, sondern die zahl zusammenzurechnen (could be put directly into change_command)
 beim Aufruf von replace_attribute zu Beginn von r_command soll der originale Input erhalten bleiben und mit weitergegeben werden um ihn am schluss auszuprinten.
 casing ignorieren bei eingaben
 read und write aktionen in eine eigene funktion schreiben. Aktuell führen 6 versch Funktionen fast genau den gleichen Code zum schreiben und lesen aus.
+in bot_functions alle funktionen die keine commands für dice_bot sind in ein anderes file auslagern
 
 Mid Prio:
-subembedded excecutable commands, wie z.B. /new damageplus change[str, show{str}+1]
-    show soll vor change ausgeführt werden.
 call custom command muss eine variable anzahl an Parametern übergeben können, da verschiedene commands verschiedene anzahl an param nehmen (maybe mit **kwargs geben oder so).
-    Ansonsten muss die Anzahl an param gestreamlined werden.
+    Ansonsten muss die Anzahl an param gestreamlined werden. (aktuell if-abfragen)
 dm_command
 hidden rolls
 -proficiency_command um einem attribut proficiency hinzuzufügen, oder zu entfernen

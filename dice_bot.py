@@ -1,11 +1,10 @@
 import traceback
 import discord
-from discord.app_commands import autocomplete
-
 import CustomErrors
 import player
 from discord import app_commands
 from discord.ext import commands
+import bot_commands
 import bot_functions
 
 intents = discord.Intents.all()
@@ -27,12 +26,10 @@ def roll_channel_check():
 async def r(ctx, to_roll="1d20", *args):
     async with ctx.channel.typing():
         author = ctx.message.author
-
         if len(args) != 0:
             for item in args:
                 to_roll += "|"+ str(item)
-
-        await bot_functions.r_command(ctx, to_roll, author.id)
+        await bot_commands.r_command(ctx, to_roll, author.id)
 
 
 @bot.command(aliases=['ra'])
@@ -46,7 +43,7 @@ async def ad(ctx, to_roll="1d20", *args):
         if len(args) != 0:
             for item in args:
                 to_roll += "|"+ str(item)
-        await bot_functions.ad_command(ctx, to_roll, author.id, 1)
+        await bot_commands.ad_command(ctx, to_roll, author.id, 1)
 
 @bot.command(aliases=['rd'])
 @roll_channel_check()
@@ -56,7 +53,7 @@ async def di(ctx, to_roll="1d20", *args):
         if len(args) != 0:
             for item in args:
                 to_roll += "|"+ str(item)
-        await bot_functions.di_command(ctx, to_roll, author.id, 2)
+        await bot_commands.di_command(ctx, to_roll, author.id, 2)
 
 @bot.command(aliases=['att','at','atta','attac'])
 @roll_channel_check()
@@ -69,40 +66,32 @@ async def attack(ctx, to_roll="attack", *args):
         if len(args) != 0:
             for item in args:
                 to_roll += str(item)
-        await bot_functions.r_command(ctx, to_roll, author.id)
+        await bot_commands.r_command(ctx, to_roll, author.id)
 
 @bot.command()
 @roll_channel_check()
 async def show(ctx, *, request):
     async with ctx.channel.typing():
-        import bot_functions
         author = ctx.message.author
-        modifier = await bot_functions.show_command(ctx, request, author.id)
+        modifier = await bot_commands.show_command(ctx, request, author.id)
         await ctx.reply(modifier)
 
 @bot.command(aliases=['show_all'])
 @roll_channel_check()
 async def showall(ctx, *args):
     async with ctx.channel.typing():
-        import bot_functions
         author = ctx.message.author
-        name_list = await bot_functions.showall_command(ctx, author.id)
+        name_list = await bot_commands.showall_command(ctx, author.id)
         await ctx.reply(name_list)
 
-@bot.command(aliases=['del','remove','re'])
+@bot.hybrid_command(name="delete", with_app_command=True, description="Löcsht den Namen und Wert eines Attributes", aliases=['del','remove','re'])
+@app_commands.guilds(discord.Object(id=1174375949081514014))
+@app_commands.describe(attribute='Name des zu löschenden Attributs')
 @roll_channel_check()
-async def delete(ctx, attribute, *args):
-    import bot_functions
-
+async def delete(ctx, attribute):
     async with ctx.channel.typing():
-        if not len(args) == 0:
-            await ctx.reply("Zu viele Werte zu denen gechanged werden sollen übergeben")
-            return
-
         author = ctx.message.author
-        request_long, old_value = await bot_functions.delete_command(ctx, attribute, author.id)
-
-        await ctx.reply(f"Dein {request_long} Eintrag mit dem Inhalt {old_value} wurde gelöscht")
+        request_long, old_value = await bot_commands.delete_command(ctx, attribute, author.id)
 
 
 @bot.hybrid_command(name="change", with_app_command=True, description="Ändert den Wert eines Attributes", aliases=["change_attr"])
@@ -110,19 +99,16 @@ async def delete(ctx, attribute, *args):
 @app_commands.describe(attribute='Name des Attributs', change_to='Neuer Modifier',)
 @roll_channel_check()
 async def change(ctx, attribute, change_to):
-    import bot_functions
-
     async with ctx.channel.typing():
         if change_to is None:
             await ctx.reply("Keinen aktuellen Wert zu dem gechanged werden soll übergeben")
             return
 
         author = ctx.message.author
-        request_long, old_value = await bot_functions.change_command(ctx, attribute, change_to, author.id)
-
+        request_long, old_value = await bot_commands.change_command(ctx, attribute, change_to, author.id)
 
 @change.autocomplete("attribute")
-@roll_channel_check()
+@delete.autocomplete("attribute")
 async def change_autocomplete(interaction: discord.Interaction, current):
     attribute_list = player.attribute_list
     return_list = [app_commands.Choice(name=attribute, value=attribute) for attribute in attribute_list if current.lower() in attribute.lower()]
@@ -156,7 +142,7 @@ async def new(ctx, command_name, modifier):
     """
     async with ctx.channel.typing():
         author = ctx.message.author
-        await bot_functions.new_command(ctx, command_name, modifier, author.id)
+        await bot_commands.new_command(ctx, command_name, modifier, author.id)
         await ctx.reply(f"Custom Command {command_name} wurde mit dem Modifier {modifier} erstellt.")
 
 @bot.hybrid_command(name="new_spell", with_app_command=True, description="Erstellt einen neuen Spell", aliases=['create_spell'])
@@ -168,7 +154,7 @@ async def new(ctx, command_name, modifier):
 async def new_spell(ctx, spell_name, modifier, upcast_modifier, spell_level):
     async with ctx.channel.typing():
         author = ctx.message.author
-        await bot_functions.new_spell_command(ctx, spell_name, modifier, author.id, upcast_modifier, spell_level)
+        await bot_commands.new_spell_command(ctx, spell_name, modifier, author.id, upcast_modifier, spell_level)
         await ctx.reply(f"Der Level {spell_level} Spell {spell_name} wurde mit dem Modifier {modifier} erstellt.")
 
 @bot.command()
@@ -176,24 +162,27 @@ async def new_spell(ctx, spell_name, modifier, upcast_modifier, spell_level):
 async def update(ctx):
     player.create_player_dict()
 
+#TODO on_error handler schreiben, der Errors abfängt, die beim fehlerhaften Aufruf von Befehlen auftreten
 @bot.event
 async def on_command_error(ctx, error, *args):
     if isinstance(error.original, CustomErrors.NotUniqueMatching):
-        await ctx.reply("Attribut Eingabe nicht eindeutig.")
+        await ctx.reply(f'Attribut Eingabe "{error.original.attr}" nicht eindeutig.')
     elif isinstance(error.original, IndexError):
-        await ctx.reply("Attribut Eingabe existiert nicht.")
+        await ctx.reply('Attribut Eingabe existiert nicht.')
     elif isinstance(error.original, CustomErrors.NotExistingMatching):
-        await ctx.reply("Attribut Eingabe existiert nicht. Wenn du dich nicht vertippt hast, kannst du erstellen mit /new")
+        await ctx.reply(f'Attribut Eingabe "{error.original.attr}" existiert nicht. Wenn du dich nicht vertippt hast, kannst du es mit /new erstellen')
+    elif isinstance(error.original, CustomErrors.AlreadyExisistingError):
+        await ctx.reply(f'Das Attribut "{error.original.attr}" existiert bereits. Benutze /change um es zu verändern.')
     elif isinstance(error.original, commands.MissingRequiredArgument):
-        await ctx.reply("Falsche Eingabe. Übergebe entweder zwei Paramter: 'Name_des_Attributs' 'Wert des Attributs' um ein Attribut zu erstellen, oder vier Parameter: 'Name_des_Spells' 'Was_der_Spell_würfeln_soll' '+was_beim_upcast_drauf_kommt' 'base_Level_des_spells'" )
-    elif isinstance(error.original, CustomErrors.NotEnoughSpellSlots):
-        await ctx.reply(f"Du hast nicht genug Spell Slots um diesen Spell auf Level {CustomErrors.NotEnoughSpellSlots.args[0]} zu casten")
+        await ctx.reply('Falsche Eingabe. Übergebe entweder zwei Paramter: "Name_des_Attributs" "Wert des Attributs" um ein Attribut zu erstellen, oder vier Parameter: "Name_des_Spells" "Was_der_Spell_würfeln_soll" "+was_beim_upcast_drauf_kommt" "base_Level_des_spells"' )
+    elif isinstance(error.original, CustomErrors.SpecificError):
+        await ctx.reply(error.original.message)
     elif isinstance(error.original, CustomErrors.TooManyInputs):
-        await ctx.reply("Zu viele Werte übergeben. Sollte '-new command_name modifier' sein. Optional für Spells noch ' spell_skalierung spell_level' eingeben" )
+        await ctx.reply('Zu viele Werte übergeben. Sollte "-new command_name modifier" sein. Optional für Spells noch "spell_skalierung spell_level" eingeben' )
     elif isinstance(error.original, CustomErrors.CustomCommandEnd):
         print(error)
     elif isinstance(error.original, KeyError):
-        await ctx.reply("Custom Attribut nicht in eigener Liste vorhanden. Use -new um Attribut zu erstellen.")
+        await ctx.reply('Custom Attribut nicht in eigener Liste vorhanden. Use -new um Attribut zu erstellen.')
     else:
         print(error)
         traceback.print_exc()

@@ -2,6 +2,7 @@ import re
 import random
 import player
 import CustomErrors
+import bot_commands
 import bot_functions
 
 #adv_modifier: 0[normal], 1[advantage], 2[disadvantage]
@@ -115,12 +116,12 @@ async def roll_attribute(ctx, to_roll, player_id):
 
     if "sav" in to_roll or "sv" in to_roll:  # überprüfen ob das Attr ein Modifier ist
         to_roll = re.sub(r"(sav|sv).*", "", to_roll)
-        to_roll = await bot_functions.match_substring(player.attribute_list_saves, to_roll)
+        to_roll_list = await bot_functions.match_substring(player.attribute_list_saves, to_roll)
     else:
-        to_roll = await bot_functions.match_substring(player.attribute_list_normal, to_roll)
+        to_roll_list = await bot_functions.match_substring(player.attribute_list_normal, to_roll)
 
-    if len(to_roll) == 0:
-        raise CustomErrors.NotExistingMatching
+    if len(to_roll_list) == 0:
+        raise CustomErrors.NotExistingMatching(to_roll)
 
     to_roll = to_roll[0]
 

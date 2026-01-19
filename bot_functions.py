@@ -1,295 +1,118 @@
 import sys
 import re
-from os import write
-
 import player
 import CustomErrors
 import dice_roller
 
-#Standard Funktion zum Würfeln. Should move to different file. Handled die Logik fürs Würfeln und die Formatierung der Ausgabe.
-async def r_command(ctx, to_roll, player_id, temp_adv_modifier=0):
+async def call_custom_command(ctx, custom_command, player_id):
+    current_module = sys.modules["bot_commands"]
 
-    dice_roller.adv_modifier = temp_adv_modifier
-    dice_roller.adv_modifier_attribute = temp_adv_modifier
+    # change[stre ad[6]] funktioniert nicht, weil die eckigen klammern im inneren auch aufgelöst werden. Darf nur an der ersten und letzten Klammer splitten.
+    # nach dem initialen split muss das innere der klammer noch gesplittet werden. Maybe syntax Kommata, wie bei spell aufrufen
+    # ad[6]+5 funktioniert auch nicht
+    # nuke the entire thing and rewrite it properly.
+    # input an der ersten und letzten klammer splitten. Alles dazwischen bei kommas trennen (was ist mit strings mit kommas (s. print comm)). Was machen wir mit input hinter den eckigen klammern?
 
-    if "sav" in to_roll or "sv" in to_roll:  # überprüfen ob das Attr ein Modifier ist
-        to_roll = re.sub(r"(sav|sv).*", "", to_roll)
-        to_roll = await match_substring(player.attribute_list_saves, to_roll)
-        to_roll = to_roll[0]
+    # custom_command_list = re.split(r"\[|\]", custom_command)
+    custom_command_list = custom_command.rsplit(']', 1)
+    custom_command_list2 = custom_command_list[0].split("[", 1)
+    custom_command_list.pop(0)
+    custom_command_list = custom_command_list2 + custom_command_list
 
-    # selber command wie below, nur es werden alle attribute ausgetauscht
-    #to_roll = await replace_custom_attribute(to_roll, player_id)
+    while "" in custom_command_list:
+        custom_command_list.remove("")
+    custom_command = custom_command_list[0]
+    custom_command += "_command"
+    to_roll = ""
 
-    #notwendig, weil -attack sonst nicht seperat ausgeführt und ausgeprinted werden, bzw alle custom-commands mit "|" seperator. Trennung erfolgt unmittelbar danach
-    if "[" not in to_roll:
-        to_roll = await replace_attribute(to_roll, player_id)
-
-    #mehrfach_würfeln, und die ergebnisse seperat zurückgeben, falls anzeigender seperator im string "to_roll" ("|" oder " ")
-    to_roll = to_roll.split("|")
-    for dice in to_roll:
-
-        # auf nested commands prüfen, falls nested command, dann den entsprechend command aufrufen. Nach dem command wird der code beendet. Weitere teile von to_roll werden ignoriert
-        # Aktuell wird nur die erste eckige klammer ausgeführt, bzw mehrere Eckige Klammern breaken call custom command
-        if "[" in dice:
-            await call_custom_command(ctx, dice, player_id)
-            continue
-
-        # überprüfe ob to_roll nur modifier enthält, wenn ja, dann erweitere to_roll um 1d20 am anfang. Für custom commands die keinen d20 enthalten und "-r dext|+1 oder so
-        if not re.search(r"[a-zA-Z]", dice):
-            dice = "1d20" + "+" + str(dice)
-
-        roll_result_output_string, roll_result_eval, original_input_modified = await dice_roller.roll_standard(ctx, dice, player_id)
-        output_message = str(original_input_modified) + ":" + str(roll_result_output_string) + " = " + str(roll_result_eval)
-        await ctx.reply(output_message)
-
+    # if abfragen durch funktionsaufruf mit *args behandeln
+    if len(custom_command_list) > 2:
+        if custom_command == "spell_command":
+            await getattr(current_module, custom_command)(ctx, custom_command_list[1], player_id, custom_command_list[2])
+        elif custom_command == "change_command":
+            custom_command_list[1] = custom_command_list[1].split(",")
+            await getattr(current_module, custom_command)(ctx, custom_command_list[1][0], custom_command_list[1][1], player_id)
+        else:
+            for modifier in custom_command_list[2:]:
+                to_roll += str(modifier)
+            await getattr(current_module, custom_command)(ctx, to_roll, player_id)
+    elif custom_command == "change_command":
+        custom_command_list[1] = custom_command_list[1].split(",")
+        await getattr(current_module, custom_command)(ctx, *custom_command_list[1], player_id)
+    else:
+        await getattr(current_module, custom_command)(ctx, custom_command_list[1], player_id)
     dice_roller.adv_modifier = 0
     dice_roller.adv_modifier_attribute = 0
-
-
-async def ad_command(ctx, to_roll, player_id, temp_adv_modifier=1):
-    await r_command(ctx, to_roll, player_id, temp_adv_modifier)
-
-async def di_command(ctx, to_roll, player_id, temp_adv_modifier=2):
-    await r_command(ctx, to_roll, player_id, temp_adv_modifier)
-
-async def spell_command(ctx, to_cast, player_id, upcast_level="0"):
-    #führt automatisch den vom Spieler eingespeicherten Spell aus und zieht dann den entsprechenden Spellslot ab
-    original_to_cast = to_cast
-    upcast_level_list = upcast_level.split("|")
-    if "" in upcast_level_list:
-        upcast_level_list.remove("")
-        upcast_level = upcast_level_list[0]
-    else:
-        upcast_level = upcast_level_list[0]
-    spell_modifier_list = to_cast.split(",")
-    spell_level = max(int(spell_modifier_list[2]), int(upcast_level))
-    bonus_damage = str(spell_modifier_list[1]) * (spell_level- int(spell_modifier_list[2]))
-    to_cast = str(spell_modifier_list[0]) + bonus_damage
-
-    await r_command(ctx, to_cast, player_id, dice_roller.adv_modifier)
-
-    if spell_level > 0:
-        ssc = await show_command(ctx, "spell_slots_current", player_id)
-        ssc = re.split(r"\W", ssc)
-        while "" in ssc:
-            ssc.remove("")
-        if int(ssc[spell_level-1]) < 1:
-            raise CustomErrors.NotEnoughSpellSlots(spell_level)
-        ssc[spell_level-1] = str(int(ssc[spell_level-1]) - 1)
-        new_spell_slots = "[" + str(ssc[0])
-        if len(ssc) > 1:
-            for slot in ssc[1:]:
-                new_spell_slots += "," + str(slot)
-        new_spell_slots += "]"
-        await change_command(ctx, "spell_slots_current", new_spell_slots, player_id)
-
     return
 
-#maybe auch im schreibcommand einfach nochmal über play_custom.txt loopen, bis line.replace("\n", "").split(";")[0] == player_name,
-#und dann line.replace("\n", "").split(";")[content(content.index(line)-1).replace("\n", "").split(";").index(to_change)] = to_change
-async def change_command(ctx, request, change_to, player_id):
-    request_type = ""               #art des request commands, ob attribute, custom oder spell
-    request_index = 0               #index in der attribute liste des spielers, in welchem der requested command steht (in player_type.txt
-    att_modifier_list = []          #liste mit allen modifiern des spielers aus der jeweiligen player_type.txt
-    request_long_list = await match_substring(player.attribute_list, request)
 
-    ### todo: in match_string einbinden!
-    if len(request_long_list) == 0:
-        raise CustomErrors.NotExistingMatching
-    ###
+async def replace_attribute(to_roll, player_id):
+    """
+    checkt beim würfeln ob einer der eingabewerte ein attribut ist und ersetze das Attribut durch den modifier-wert.
+    Ist der selbe Code wie replace_custom_attribute, nur der match_substring Aufruf übergibt die Liste mit allem Attributen.
+    Der Rekursive Aufruf ruft auch sich selber auf.
+    """
+    temp_to_roll = await split_dice_string(to_roll)
+    temp_player_name = player.user_dict[player_id]
+    pos1 = 0
+    pos2 = 0
+    to_roll = ""
 
-    request_long = request_long_list[0]
+    for i in range(len(temp_to_roll)):
+        temp_einzel_eingabe = temp_to_roll[i]
 
-    #gibt zurück ob das attribut in attribute, custom oder spells ist
-    for k, v in player.attribute_dict.items():
-        if request_long in v:
-            request_type = k
-            break
+        custom_attribute_list = await match_substring(player.attribute_list, temp_einzel_eingabe)
+        if len(custom_attribute_list) > 0:
 
-    if request_type == "":
-        raise CustomErrors.NotExistingMatching
+            custom_modifier = str(player.player_attribute_dict.get(temp_player_name)[custom_attribute_list[0]])
+            custom_modifier_list = await split_dice_string(custom_modifier)
+            # Problem: di[1d20] wird aufgeteilt, dann wird di als attribut gesucht, ist in medicine drin, dadurch fehler. dürfen bei [] nur den bereich im inneren ersetzen
+            custom_modifier = ""
+            temp_custom_modifier_list = custom_modifier_list
 
-    file_name_string = f'player_{request_type}.txt'
-    user_name = player.user_dict[player_id]
-    att_dict = player.player_attribute_dict[user_name]
+            while " " in custom_modifier_list:
+                custom_modifier_list.remove(" ")
 
-    att_name_list = list(att_dict)                          #gibt alle keys aus dem attribute dict des spielers, der den Command aufgerufen hat
-    player_number = list(player.player_attribute_dict)
-    player_number = player_number.index(user_name)
+            if "[" not in custom_modifier_list:
+                for custom in range(len(temp_custom_modifier_list)):
+                    nested_modifier = temp_custom_modifier_list[custom]
+                    nested_command_list = await match_substring(player.attribute_list, nested_modifier)
 
-    #hole request_index und att_modifier_list aus player_tyoe.txt
+                    if len(nested_command_list) > 0:
+                        custom_modifier_list[custom + pos1] = await replace_attribute(nested_command_list[0], player_id)
 
-    player_number = player_number * 2
-    with open(file_name_string) as file:
-        lines = file.readlines()
-        if (player_number <= len(lines)):
-            att_modifier_list = lines[player_number].replace("\n", "").split(";")
-            for i in range(len(att_modifier_list)):
-                if att_modifier_list[i] == request_long:
-                    request_index = i
-                    att_modifier_list = lines[player_number+1].replace("\n", "").split(";")
-                    break
-    player_number = player_number + 1                       #setze player_number auf die zeile der textdatei in welcher die Modifier des Spielers stehen
+            for custom in range(len(custom_modifier_list)):
+                custom_modifier += custom_modifier_list[custom]
+            temp_to_roll[i] = custom_modifier
 
+    for i in temp_to_roll:
+        to_roll += i
 
-    old_value = att_modifier_list[request_index]
-    att_modifier_list[request_index] = change_to
-    write_string = str(user_name)
-
-    #schreibe in write string die attribute
-    for i in att_modifier_list[1:]:
-        write_string += ";" + i
+    return (to_roll)
 
 
-    with open(file_name_string) as file:
-        lines = file.readlines()
-        if (player_number <= len(lines)):
-            lines[player_number] = write_string + "\n"
-            with open(file_name_string, "w") as file:
-                for line in lines:
-                    file.write(line)
-
-    player.create_player_dict()
-    await ctx.reply(f"Dein {request_long} Eintrag wurde von {old_value} zu {change_to} geändert")
-    return(request_long, old_value)
+async def split_dice_string(string_w) -> list:
+    """
+    splittet den string an allen charakteren die nicht Buchstabe oder Zahl sind
+    """
+    split_string_list = re.split(r'(\W)', string_w)
+    while "" in split_string_list:
+        split_string_list.remove("")
+    return (split_string_list)
 
 
-async def delete_command(ctx, request, player_id):
-    request_type = ""               #art des request commands, ob attribute, custom oder spell
-    request_index = 0               #index in der attribute liste des spielers, in welchem der requested command steht (in player_type.txt
-    att_name_list = []              # liste mit allen attr namen des spielers aus der jeweiligen player_type.txt
-    att_modifier_list = []          #liste mit allen modifiern des spielers aus der jeweiligen player_type.txt
-    request_long_list = await match_substring(player.attribute_list, request)
+# todo Füge überprüfung ob len(matching_list) >1, == 1 oder 0 ein.
+# werfe error auf >1, return andernfalls
+# todo: füge überprüfung ein, ob saving throw oder nicht, indem to_roll auf sv überprüft wird, maybe return in welcher liste der wert gefunden wurde (normal, save, custom, spell)
+async def match_substring(list_to_search, search_string):
+    """
+    Looks through a list of strings and returns all strings that start with "search_string" as a sub_string
+    """
+    matching_list = [text for text in list_to_search if text.startswith(search_string)]
 
-    ### todo: in match_string einbinden!
-    if len(request_long_list) == 0:
-        raise CustomErrors.NotExistingMatching
-    ###
-
-    request_long = request_long_list[0]
-
-    #gibt zurück ob das attribut in attribute, custom oder spells ist
-    for k, v in player.attribute_dict.items():
-        if request_long in v:
-            request_type = k
-            break
-
-    if request_type == "":
-        raise CustomErrors.NotExistingMatching
-
-    if request_type == "attribute":
-        raise Exception
-
-    file_name_string = f'player_{request_type}.txt'
-    user_name = player.user_dict[player_id]
-    att_dict = player.player_attribute_dict[user_name]
-
-    att_name_list = list(att_dict)                          #gibt alle keys aus dem attribute dict des spielers, der den Command aufgerufen hat
-    player_number = list(player.player_attribute_dict)
-    player_number = player_number.index(user_name)
-
-    #hole request_index und att_modifier_list aus player_type.txt
-
-    player_number = player_number * 2
-    with open(file_name_string) as file:
-        lines = file.readlines()
-        if (player_number <= len(lines)):
-            att_name_list = lines[player_number].replace("\n", "").split(";")
-            for i in range(len(att_name_list)):
-                if att_name_list[i] == request_long:
-                    request_index = i
-                    att_modifier_list = lines[player_number+1].replace("\n", "").split(";")
-                    break
-    player_number = player_number + 1                       #setze player_number auf die zeile der textdatei in welcher die Modifier des Spielers stehen
+    return (matching_list)
 
 
-    old_value = att_modifier_list[request_index]
-    del att_name_list[request_index]
-    del att_modifier_list[request_index]
-    write_name_string = str(user_name)
-    write_modifier_string = str(user_name)
-
-    #schreibe in write string die attribute
-    for i in att_name_list[1:]:
-        write_name_string += ";" + str(i)
-    for i in att_modifier_list[1:]:
-        write_modifier_string += ";" + str(i)
-
-    with open(file_name_string) as file:
-        lines = file.readlines()
-        if (player_number <= len(lines)):
-            lines[player_number-1] = write_name_string + "\n"
-            lines[player_number] = write_modifier_string + "\n"
-            with open(file_name_string, "w") as file:
-                for line in lines:
-                    file.write(line)
-
-    player.create_player_dict()
-    return(request_long, old_value)
-
-async def new_command(ctx, command_name, modifier, player_id):
-    user_name = player.user_dict[player_id]
-    player_number = list(player.player_attribute_dict)
-    player_number = player_number.index(user_name) * 2
-    write_name_string = str(user_name)
-    write_modifier_string = str(user_name)
-
-    if command_name in player.player_attribute_dict[user_name]:
-        await change_command(ctx, command_name, modifier, player_id)
-        return
-
-    with open("player_custom.txt") as file:
-        lines = file.readlines()
-        att_name_list = lines[player_number].replace("\n", "").split(";")
-        att_name_list.append(command_name)
-        att_modifier_list = lines[player_number+1].replace("\n", "").split(";")
-        att_modifier_list.append(modifier)
-        for att_name in att_name_list[1:]:
-            write_name_string += ";" + str(att_name)
-        for att_modifier in att_modifier_list[1:]:
-            write_modifier_string += ";" + str(att_modifier)
-        if (player_number <= len(lines)):
-            lines[player_number] = write_name_string + "\n"
-            lines[player_number+1] = write_modifier_string + "\n"
-            with open("player_custom.txt", "w") as file:
-                for line in lines:
-                    file.write(line)
-
-    player.create_player_dict()
-    return
-
-async def new_spell_command(ctx, command_name, modifier, player_id, spell_scaling, spell_level):
-    user_name = player.user_dict[player_id]
-    player_number = list(player.player_attribute_dict)
-    player_number = player_number.index(user_name) * 2
-    write_name_string = str(user_name)
-    write_modifier_string = str(user_name)
-    modifier_string = "spell["
-
-    if command_name in player.player_attribute_dict[user_name]:
-        raise CustomErrors.NotUniqueMatching
-
-    modifier_string += str(modifier) + "," + str(spell_scaling) + "," + str(spell_level)
-    modifier = modifier_string + "]"
-
-    with open("player_spells.txt") as file:
-        lines = file.readlines()
-        att_name_list = lines[player_number].replace("\n", "").split(";")
-        att_name_list.append(command_name)
-        att_modifier_list = lines[player_number+1].replace("\n", "").split(";")
-        att_modifier_list.append(modifier)
-        for att_name in att_name_list[1:]:
-            write_name_string += ";" + str(att_name)
-        for att_modifier in att_modifier_list[1:]:
-            write_modifier_string += ";" + str(att_modifier)
-        if (player_number <= len(lines)):
-            lines[player_number] = write_name_string + "\n"
-            lines[player_number+1] = write_modifier_string + "\n"
-            with open("player_spells.txt", "w") as file:
-                for line in lines:
-                    file.write(line)
-    player.create_player_dict()
-    return
 
 
 async def replace_custom_attribute(to_roll, player_id):
@@ -334,139 +157,3 @@ async def replace_custom_attribute(to_roll, player_id):
         to_roll += i
 
     return(to_roll)
-
-async def replace_attribute(to_roll, player_id):
-    """
-    checkt beim würfeln ob einer der eingabewerte ein attribut ist und ersetze das Attribut durch den modifier-wert.
-    Ist der selbe Code wie replace_custom_attribute, nur der match_substring Aufruf übergibt die Liste mit allem Attributen.
-    Der Rekursive Aufruf ruft auch sich selber auf.
-    """
-    temp_to_roll = await split_dice_string(to_roll)
-    temp_player_name = player.user_dict[player_id]
-    pos1=0
-    pos2=0
-    to_roll = ""
-
-    for i in range(len(temp_to_roll)):
-        temp_einzel_eingabe = temp_to_roll[i]
-
-        custom_attribute_list = await match_substring(player.attribute_list, temp_einzel_eingabe)
-        if len(custom_attribute_list) > 0:
-
-            custom_modifier = str(player.player_attribute_dict.get(temp_player_name)[custom_attribute_list[0]])
-            custom_modifier_list = await split_dice_string(custom_modifier)
-            #Problem: di[1d20] wird aufgeteilt, dann wird di als attribut gesucht, ist in medicine drin, dadurch fehler. dürfen bei [] nur den bereich im inneren ersetzen
-            custom_modifier = ""
-            temp_custom_modifier_list = custom_modifier_list
-
-            while " " in custom_modifier_list:
-                custom_modifier_list.remove(" ")
-
-            if "[" not in custom_modifier_list:
-                for custom in range(len(temp_custom_modifier_list)):
-                    nested_modifier = temp_custom_modifier_list[custom]
-                    nested_command_list = await match_substring(player.attribute_list, nested_modifier)
-
-                    if len(nested_command_list) > 0:
-                        custom_modifier_list[custom+pos1] = await replace_attribute(nested_command_list[0], player_id)
-
-            for custom in range(len(custom_modifier_list)):
-                custom_modifier += custom_modifier_list[custom]
-            temp_to_roll[i] = custom_modifier
-
-    for i in temp_to_roll:
-        to_roll += i
-
-    return(to_roll)
-
-async def show_command(ctx, request, player_id, *args):
-
-    user_name = player.user_dict[player_id]
-
-    if request in list(player.attribute_dict):
-        file_name_string = f'player_{request}.txt'
-        player_number = list(player.player_attribute_dict)
-        player_number = player_number.index(user_name)
-        player_number = player_number * 2
-        with open(file_name_string) as file:
-            lines = file.readlines()
-            att_name_list = lines[player_number].replace("\n", "").split(";")
-            return(att_name_list[1:])
-
-    request_long = await match_substring(player.attribute_list, request)
-    att_dict = player.player_attribute_dict[user_name]
-    return(att_dict[request_long[0]])
-
-async def showall_command(ctx, player_id):
-    user_name = player.user_dict[player_id]
-    att_dict = player.player_attribute_dict[user_name]
-    att_name_list = list(att_dict)
-    return(att_dict)
-
-
-async def call_custom_command(ctx, custom_command, player_id):
-    current_module = sys.modules["bot_functions"]
-
-    #change[stre ad[6]] funktioniert nicht, weil die eckigen klammern im inneren auch aufgelöst werden. Darf nur an der ersten und letzten Klammer splitten.
-    #nach dem initialen split muss das innere der klammer noch gesplittet werden. Maybe syntax Kommata, wie bei spell aufrufen
-    #ad[6]+5 funktioniert auch nicht
-    #nuke the entire thing and rewrite it properly.
-    #input an der ersten und letzten klammer splitten. Alles dazwischen bei kommas trennen (was ist mit strings mit kommas (s. print comm)). Was machen wir mit input hinter den eckigen klammern?
-
-    #custom_command_list = re.split(r"\[|\]", custom_command)
-    custom_command_list = custom_command.rsplit(']', 1)
-    custom_command_list2 = custom_command_list[0].split("[", 1)
-    custom_command_list.pop(0)
-    custom_command_list = custom_command_list2+custom_command_list
-
-    while "" in custom_command_list:
-        custom_command_list.remove("")
-    custom_command = custom_command_list[0]
-    custom_command += "_command"
-    to_roll = ""
-
-
-    #if abfragen durch funktionsaufruf mit *args behandeln
-    if len(custom_command_list) > 2:
-        if custom_command == "spell_command":
-            await getattr(current_module, custom_command)(ctx, custom_command_list[1], player_id, custom_command_list[2])
-        elif custom_command == "change_command":
-            custom_command_list[1] = custom_command_list[1].split(",")
-            await getattr(current_module, custom_command)(ctx, custom_command_list[1][0], custom_command_list[1][1], player_id)
-        else:
-            for modifier in custom_command_list[2:]:
-                to_roll += str(modifier)
-            await getattr(current_module, custom_command)(ctx, to_roll, player_id)
-    elif custom_command == "change_command":
-        custom_command_list[1] = custom_command_list[1].split(",")
-        await getattr(current_module, custom_command)(ctx, *custom_command_list[1], player_id)
-    else:
-        await getattr(current_module, custom_command)(ctx, custom_command_list[1], player_id)
-    dice_roller.adv_modifier = 0
-    dice_roller.adv_modifier_attribute = 0
-    return
-
-async def print_command(ctx, output, player_id):
-    await ctx.reply(str(output))
-
-
-async def split_dice_string(string_w)->list:
-    """
-    splittet den string an allen charakteren die nicht Buchstabe oder Zahl sind
-    """
-    split_string_list = re.split(r'(\W)', string_w)
-    while "" in split_string_list:
-        split_string_list.remove("")
-    return(split_string_list)
-
-
-# todo Füge überprüfung ob len(matching_list) >1, == 1 oder 0 ein.
-#werfe error auf >1, return andernfalls
-#todo: füge überprüfung ein, ob saving throw oder nicht, indem to_roll auf sv überprüft wird, maybe return in welcher liste der wert gefunden wurde (normal, save, custom, spell)
-async def match_substring(list_to_search, search_string):
-    """
-    Looks through a list of strings and returns all strings that start with "search_string" as a sub_string
-    """
-    matching_list = [text for text in list_to_search if text.startswith(search_string)]
-
-    return(matching_list)

@@ -1,7 +1,7 @@
 import os
 from dice_bot import bot, new
 from dotenv import load_dotenv
-import bot_functions
+import bot_commands
 import player
 
 load_dotenv()
