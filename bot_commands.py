@@ -6,53 +6,59 @@ import CustomErrors
 import dice_roller
 import bot_functions
 
-#Standard Funktion zum Würfeln. Should move to different file. Handled die Logik fürs Würfeln und die Formatierung der Ausgabe.
-async def r_command(ctx, to_roll, player_id, temp_adv_modifier=0):
+original_input_global = ""
+
+#Standard Funktion zum Würfeln. Handled die Logik fürs Würfeln und die Formatierung der Ausgabe.
+async def r_command(ctx, player_id, to_roll,  temp_adv_modifier=0):
 
     dice_roller.adv_modifier = temp_adv_modifier
     dice_roller.adv_modifier_attribute = temp_adv_modifier
+    original_input_modified = to_roll
+    global original_input_global
+    original_input_modified = to_roll
 
-    if "sav" in to_roll or "sv" in to_roll:  # überprüfen ob das Attr ein Modifier ist
-        to_roll = re.sub(r"(sav|sv).*", "", to_roll)
-        to_roll = await bot_functions.match_substring(player.attribute_list_saves, to_roll)
-        to_roll = to_roll[0]
-
-    # selber command wie below, nur es werden alle attribute ausgetauscht
-    #to_roll = await replace_custom_attribute(to_roll, player_id)
-
-    #notwendig, weil -attack sonst nicht seperat ausgeführt und ausgeprinted werden, bzw alle custom-commands mit "|" seperator. Trennung erfolgt unmittelbar danach
+    #ersetzt alle attributnamen in to_roll mit dem dazugehörigen Modifier.
+    #Wird nur ausgeführt, wenn der input kein nested command ist, ansonsten würde change[str 6] nicht funktionieren, da er str durch den modifier ersetzt
     if "[" not in to_roll:
-        to_roll = await bot_functions.replace_attribute(to_roll, player_id)
+        to_roll, original_input_modified = await bot_functions.replace_attribute(ctx, player_id, to_roll)        #original_input wird später überschrieben. Muss noch behandelt werden.
+
+    if len(original_input_global) == 0:
+        original_input_global = original_input_modified
+        original_input_global = original_input_global.split("|")
 
     #mehrfach_würfeln, und die ergebnisse seperat zurückgeben, falls anzeigender seperator im string "to_roll" ("|" oder " ")
     to_roll = to_roll.split("|")
-    for dice in to_roll:
+    for i in range(len(to_roll)):
+        dice=to_roll[i]
+        original_input_modified = original_input_global[0]
 
-        # auf nested commands prüfen, falls nested command, dann den entsprechend command aufrufen. Nach dem command wird der code beendet. Weitere teile von to_roll werden ignoriert
-        # Aktuell wird nur die erste eckige klammer ausgeführt, bzw mehrere Eckige Klammern breaken call custom command
+        # auf nested commands prüfen, falls nested command, dann den entsprechend command aufrufen. Nach dem command wird das printen übersprungen und zum nächsten Element von to_roll gegangen.
+        # TODO: aktuell wird nur die erste eckige Klammer ausgeführt. Füge in call_custom_command behandlung von mehreren eckigen klammern ein.
         if "[" in dice:
-            await bot_functions.call_custom_command(ctx, dice, player_id)
+            await bot_functions.call_custom_command(ctx, player_id, dice)
             continue
+
 
         # überprüfe ob to_roll nur modifier enthält, wenn ja, dann erweitere to_roll um 1d20 am anfang. Für custom commands die keinen d20 enthalten und "-r dext|+1 oder so
         if not re.search(r"[a-zA-Z]", dice):
             dice = "1d20" + "+" + str(dice)
 
-        roll_result_output_string, roll_result_eval, original_input_modified = await dice_roller.roll_standard(ctx, dice, player_id)
-        output_message = str(original_input_modified) + ":" + str(roll_result_output_string) + " = " + str(roll_result_eval)
+        roll_result_output_string, roll_result_eval, original_input = await dice_roller.roll_standard(ctx, dice, player_id)
+        output_message = str(original_input_modified) + " :" + str(roll_result_output_string) + " = " + str(roll_result_eval)
         await ctx.reply(output_message)
+        original_input_global.pop(0)
 
     dice_roller.adv_modifier = 0
     dice_roller.adv_modifier_attribute = 0
 
 
-async def ad_command(ctx, to_roll, player_id, temp_adv_modifier=1):
-    await r_command(ctx, to_roll, player_id, temp_adv_modifier)
+async def ad_command(ctx, player_id, to_roll,  temp_adv_modifier=1):
+    await r_command(ctx, player_id, to_roll,  temp_adv_modifier)
 
-async def di_command(ctx, to_roll, player_id, temp_adv_modifier=2):
-    await r_command(ctx, to_roll, player_id, temp_adv_modifier)
+async def di_command(ctx, player_id, to_roll, temp_adv_modifier=2):
+    await r_command(ctx, player_id, to_roll, temp_adv_modifier)
 
-async def spell_command(ctx, to_cast, player_id, upcast_level="0"):
+async def spell_command(ctx, player_id, to_cast, upcast_level="0"):
     #führt automatisch den vom Spieler eingespeicherten Spell aus und zieht dann den entsprechenden Spellslot ab
     original_to_cast = to_cast
     upcast_level_list = upcast_level.split("|")
@@ -66,10 +72,10 @@ async def spell_command(ctx, to_cast, player_id, upcast_level="0"):
     bonus_damage = str(spell_modifier_list[1]) * (spell_level- int(spell_modifier_list[2]))
     to_cast = str(spell_modifier_list[0]) + bonus_damage
 
-    await r_command(ctx, to_cast, player_id, dice_roller.adv_modifier)
+    await r_command(ctx, player_id, to_cast, dice_roller.adv_modifier)
 
     if spell_level > 0:
-        ssc = await show_command(ctx, "spell_slots_current", player_id)
+        ssc = await show_command(ctx, player_id, "spell_slots_current")
         ssc = re.split(r"\W", ssc)
         while "" in ssc:
             ssc.remove("")
@@ -81,13 +87,13 @@ async def spell_command(ctx, to_cast, player_id, upcast_level="0"):
             for slot in ssc[1:]:
                 new_spell_slots += "," + str(slot)
         new_spell_slots += "]"
-        await change_command(ctx, "spell_slots_current", new_spell_slots, player_id)
+        await change_command(ctx, player_id, "spell_slots_current", new_spell_slots)
 
     return
 
 #maybe auch im schreibcommand einfach nochmal über play_custom.txt loopen, bis line.replace("\n", "").split(";")[0] == player_name,
 #und dann line.replace("\n", "").split(";")[content(content.index(line)-1).replace("\n", "").split(";").index(to_change)] = to_change
-async def change_command(ctx, request, change_to, player_id):
+async def change_command(ctx, player_id, request, change_to):
     request_type = ""               #art des request commands, ob attribute, custom oder spell
     request_index = 0               #index in der attribute liste des spielers, in welchem der requested command steht (in player_type.txt
     att_modifier_list = []          #liste mit allen modifiern des spielers aus der jeweiligen player_type.txt
@@ -154,7 +160,7 @@ async def change_command(ctx, request, change_to, player_id):
     return(request_long, old_value)
 
 
-async def delete_command(ctx, request, player_id):
+async def delete_command(ctx, player_id, request):
     request_type = ""               #art des request commands, ob attribute, custom oder spell
     request_index = 0               #index in der attribute liste des spielers, in welchem der requested command steht (in player_type.txt
     att_name_list = []              # liste mit allen attr namen des spielers aus der jeweiligen player_type.txt
@@ -228,7 +234,7 @@ async def delete_command(ctx, request, player_id):
     await ctx.reply(f"Dein {request_long} Eintrag mit dem Inhalt {old_value} wurde gelöscht")
     return(request_long, old_value)
 
-async def new_command(ctx, command_name, modifier, player_id):
+async def new_command(ctx, player_id, command_name, modifier):
     user_name = player.user_dict[player_id]
     player_number = list(player.player_attribute_dict)
     player_number = player_number.index(user_name) * 2
@@ -261,7 +267,7 @@ async def new_command(ctx, command_name, modifier, player_id):
     player.create_player_dict()
     return
 
-async def new_spell_command(ctx, command_name, modifier, player_id, spell_scaling, spell_level):
+async def new_spell_command(ctx, player_id, command_name, modifier, spell_scaling, spell_level):
     user_name = player.user_dict[player_id]
     player_number = list(player.player_attribute_dict)
     player_number = player_number.index(user_name) * 2
@@ -294,7 +300,7 @@ async def new_spell_command(ctx, command_name, modifier, player_id, spell_scalin
     player.create_player_dict()
     return
 
-async def show_command(ctx, request, player_id, *args):
+async def show_command(ctx, player_id, request, *args):
 
     user_name = player.user_dict[player_id]
 
@@ -318,5 +324,5 @@ async def showall_command(ctx, player_id):
     att_name_list = list(att_dict)
     return(att_dict)
 
-async def print_command(ctx, output, player_id):
+async def print_command(ctx, player_id, output):
     await ctx.reply(str(output))

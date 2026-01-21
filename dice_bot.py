@@ -1,11 +1,14 @@
 import traceback
 import discord
+from discord.ext.commands import CommandNotFound
+
 import CustomErrors
 import player
 from discord import app_commands
 from discord.ext import commands
 import bot_commands
 import bot_functions
+import dice_roller
 
 intents = discord.Intents.all()
 intents.message_content = True
@@ -29,7 +32,8 @@ async def r(ctx, to_roll="1d20", *args):
         if len(args) != 0:
             for item in args:
                 to_roll += "|"+ str(item)
-        await bot_commands.r_command(ctx, to_roll, author.id)
+        await bot_commands.r_command(ctx, author.id, to_roll)
+        bot_commands.original_input_global = ""
 
 
 @bot.command(aliases=['ra'])
@@ -43,7 +47,8 @@ async def ad(ctx, to_roll="1d20", *args):
         if len(args) != 0:
             for item in args:
                 to_roll += "|"+ str(item)
-        await bot_commands.ad_command(ctx, to_roll, author.id, 1)
+        await bot_commands.ad_command(ctx, author.id, to_roll,  1)
+        bot_commands.original_input_global = ""
 
 @bot.command(aliases=['rd'])
 @roll_channel_check()
@@ -53,7 +58,8 @@ async def di(ctx, to_roll="1d20", *args):
         if len(args) != 0:
             for item in args:
                 to_roll += "|"+ str(item)
-        await bot_commands.di_command(ctx, to_roll, author.id, 2)
+        await bot_commands.di_command(ctx, author.id, to_roll,  2)
+        bot_commands.original_input_global = ""
 
 @bot.command(aliases=['att','at','atta','attac'])
 @roll_channel_check()
@@ -66,14 +72,15 @@ async def attack(ctx, to_roll="attack", *args):
         if len(args) != 0:
             for item in args:
                 to_roll += str(item)
-        await bot_commands.r_command(ctx, to_roll, author.id)
+        await bot_commands.r_command(ctx, author.id, to_roll)
+        bot_commands.original_input_global = ""
 
 @bot.command()
 @roll_channel_check()
 async def show(ctx, *, request):
     async with ctx.channel.typing():
         author = ctx.message.author
-        modifier = await bot_commands.show_command(ctx, request, author.id)
+        modifier = await bot_commands.show_command(ctx, author.id, request)
         await ctx.reply(modifier)
 
 @bot.command(aliases=['show_all'])
@@ -91,7 +98,7 @@ async def showall(ctx, *args):
 async def delete(ctx, attribute):
     async with ctx.channel.typing():
         author = ctx.message.author
-        request_long, old_value = await bot_commands.delete_command(ctx, attribute, author.id)
+        request_long, old_value = await bot_commands.delete_command(ctx, author.id, attribute)
 
 
 @bot.hybrid_command(name="change", with_app_command=True, description="Ändert den Wert eines Attributes", aliases=["change_attr"])
@@ -105,7 +112,7 @@ async def change(ctx, attribute, change_to):
             return
 
         author = ctx.message.author
-        request_long, old_value = await bot_commands.change_command(ctx, attribute, change_to, author.id)
+        request_long, old_value = await bot_commands.change_command(ctx, author.id, attribute, change_to)
 
 @delete.autocomplete("attribute")
 async def delete_autocomplete(interaction: discord.Interaction, current):
@@ -158,7 +165,7 @@ async def new(ctx, command_name, modifier):
     """
     async with ctx.channel.typing():
         author = ctx.message.author
-        await bot_commands.new_command(ctx, command_name, modifier, author.id)
+        await bot_commands.new_command(ctx, author.id, command_name, modifier)
         await ctx.reply(f"Custom Command {command_name} wurde mit dem Modifier {modifier} erstellt.")
 
 @bot.hybrid_command(name="new_spell", with_app_command=True, description="Erstellt einen neuen Spell", aliases=['create_spell'])
@@ -170,7 +177,7 @@ async def new(ctx, command_name, modifier):
 async def new_spell(ctx, spell_name, modifier, upcast_modifier, spell_level):
     async with ctx.channel.typing():
         author = ctx.message.author
-        await bot_commands.new_spell_command(ctx, spell_name, modifier, author.id, upcast_modifier, spell_level)
+        await bot_commands.new_spell_command(ctx, author.id, spell_name, modifier, upcast_modifier, spell_level)
         await ctx.reply(f"Der Level {spell_level} Spell {spell_name} wurde mit dem Modifier {modifier} erstellt.")
 
 @bot.command()
@@ -182,6 +189,9 @@ async def update(ctx):
 @bot.event
 async def on_command_error(ctx, error, *args):
     try:
+        bot_commands.original_input_global = ""
+        dice_roller.adv_modifier = 0
+        dice_roller.adv_modifier_attribute = 0
         if isinstance(error.original, CustomErrors.NotUniqueMatching):
             await ctx.reply(f'Attribut Eingabe "{error.original.attr}" nicht eindeutig.')
         elif isinstance(error.original, CustomErrors.NotExistingMatching):
@@ -202,12 +212,21 @@ async def on_command_error(ctx, error, *args):
             await ctx.reply('Attribut Eingabe existiert nicht.')
         else:
             print(error)
-            traceback.print_exc()
+            error.traceback.print_exc()
             await ctx.reply(f"Error - {error}")
     except Exception:
-        print(error)
-        traceback.print_exc()
-        await ctx.reply(f"Error - {error}")
+        if isinstance(error, CommandNotFound):
+            try:
+                command = error.args[0].split('"')
+                command = command[1]
+                author = ctx.message.author
+                await bot_commands.r_command(ctx, author.id, command)
+            except Exception:
+                await ctx.reply(f"Error - {error}")
+        else:
+            print(error)
+            traceback.print_exc()
+            await ctx.reply(f"Error - {error}")
 
 ##test##
 @bot.hybrid_command(name="test", with_app_command=True, description="Testing")

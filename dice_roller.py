@@ -9,6 +9,9 @@ import bot_functions
 adv_modifier = 0
 adv_modifier_attribute = 0
 
+#TODO: soll "original_input" als param übergeben bekommen können und den am ende mit zurückgeben. Die erstellung von original_input_modified_string soll in bot_commands.r_command erfolgen.
+#in dieser funktion wird außer der rückgabe von roll attribut eigentlich nichts an der conversion von to_roll zu original_input_modified verändert, aka der attribut name wird verkürzt.
+#Standard Funktion zum Würfeln. Handled die Logik fürs Würfeln und die Formatierung der Ausgabe.
 async def roll_standard(ctx, to_roll, player_id):
     roll_result_eval_string = ""  # zum tracken und späteren addieren der Würfelergebnisse
     roll_result_output_string = ""  # zum tracken und späteren printen der Würfelergebnisse
@@ -99,26 +102,25 @@ async def roll_dice(to_roll="1d20"):
     adv_modifier = 0
     return (roll_result_output, str(roll_result_eval))
 
-
+#Function müsste dead sein. Ich glaube man kann nicht mehr hineingehen, weil in bot_commands.r_command attribute durch ihre modifier ersetzt werden. Rekursiv, falls diese ebenfalls attribute sind.
+#einzige ausnahme ist, falls [] in to_roll oder im modifier steht und darin ein attribut.
+#Aber damit würde call_custom_command aufgerufen werden, welches wiederum r_command aufrufen müsste und dort werden attribute erneute ersetzt.
 async def roll_attribute(ctx, to_roll, player_id):
-    '''
+    """
     bekommt den Namen eines Attributs in to_roll übergeben, guckt den Attr Wert des Spielers nach und würfelt einen d20 mit dem Ergebnis
     :param ctx:Context
     :param to_roll:str
     :param player_id:str
     :return:(str,str,str)
-    '''
+    """
+    # TODO: sollte in bot_commands r_command ausgeführt werden, da attribut Behandlung und abfangen nun dort ausgeführt wird.
     global adv_modifier
     global adv_modifier_attribute
     adv_modifier = adv_modifier_attribute
 
     player_name = player.user_dict[player_id]
 
-    if "sav" in to_roll or "sv" in to_roll:  # überprüfen ob das Attr ein Modifier ist
-        to_roll = re.sub(r"(sav|sv).*", "", to_roll)
-        to_roll_list = await bot_functions.match_substring(player.attribute_list_saves, to_roll)
-    else:
-        to_roll_list = await bot_functions.match_substring(player.attribute_list_normal, to_roll)
+    to_roll_list = await bot_functions.match_substring(player.attribute_list, to_roll)
 
     if len(to_roll_list) == 0:
         raise CustomErrors.NotExistingMatching(to_roll)
@@ -130,7 +132,7 @@ async def roll_attribute(ctx, to_roll, player_id):
     to_roll_attribute_modifier = str(player.player_attribute_dict.get(player_name)[to_roll])
 
     if "[" in to_roll_attribute_modifier:
-        await bot_functions.call_custom_command(ctx, to_roll_attribute_modifier, player_id)
+        await bot_functions.call_custom_command(ctx, player_id, to_roll_attribute_modifier)
         raise CustomErrors.CustomCommandEnd
 
     # original_input auf attribute_namen_kurz setzen, wenn standard attribut gewürfelt wurde
