@@ -192,7 +192,16 @@ async def on_command_error(ctx, error, *args):
         bot_commands.original_input_global = ""
         dice_roller.adv_modifier = 0
         dice_roller.adv_modifier_attribute = 0
-        if isinstance(error.original, CustomErrors.NotUniqueMatching):
+        if isinstance(error, CommandNotFound):
+            command = error.args[0].split('"')
+            command = command[1]
+            author = ctx.message.author
+            await bot_commands.r_command(ctx, author.id, command)
+            bot_commands.original_input_global = ""
+        elif isinstance(error, commands.CheckFailure):
+            #falscher Channel. Maybe in Zukunft Behandlung einbauen welcher server es ist und dann ausprinten dass der Channel falsch ist, wenn auf D&D im falschen Channel gewürfelt wird.
+            return()
+        elif isinstance(error.original, CustomErrors.NotUniqueMatching):
             await ctx.reply(f'Attribut Eingabe "{error.original.attr}" nicht eindeutig.')
         elif isinstance(error.original, CustomErrors.NotExistingMatching):
             await ctx.reply(f'Attribut Eingabe "{error.original.attr}" existiert nicht. Wenn du dich nicht vertippt hast, kannst du es mit /new erstellen')
@@ -215,18 +224,10 @@ async def on_command_error(ctx, error, *args):
             error.traceback.print_exc()
             await ctx.reply(f"Error - {error}")
     except Exception:
-        if isinstance(error, CommandNotFound):
-            try:
-                command = error.args[0].split('"')
-                command = command[1]
-                author = ctx.message.author
-                await bot_commands.r_command(ctx, author.id, command)
-            except Exception:
-                await ctx.reply(f"Error - {error}")
-        else:
-            print(error)
-            traceback.print_exc()
-            await ctx.reply(f"Error - {error}")
+        print(error)
+        traceback.print_exc()
+        await ctx.reply(f"Error - {error}")
+        bot_commands.original_input_global = ""
 
 ##test##
 @bot.hybrid_command(name="test", with_app_command=True, description="Testing")
